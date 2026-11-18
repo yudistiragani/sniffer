@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+import uuid
+from collections.abc import Callable
+from contextlib import ExitStack
+from datetime import UTC, datetime
+from pathlib import Path
+
+from filelock import FileLock
+
+from sniffer.capture.writer import append_json
+from sniffer.device import ADB, resolve
+from sniffer.jobs import JobConflict, SearchJob
+from sniffer.runtime import atomic_json, lock
+from sniffer.settings import Settings
+
+
+def job_fingerprint(job: SearchJob, *, capture: bool, frida: bool) -> str:
+    payload = {**job.model_dump(), "capture": capture, "frida": frida}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
+def new_session(settings: Settings, platform: str, device: str, **metadata) -> Path:
+    from sniffer.settings import safe_name
+    safe_name(platform)
+    safe_name(device)
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    output = settings.output_dir / f"{stamp}_{platform}_{device}_{uuid.uuid4().hex[:8]}"
+    output.mkdir(parents=True, exist_ok=False, mode=0o700)
+    atomic_json(output / "session.json", {
+        "platform": platform, "device": device,
+        "domains": settings.platforms[platform].domains,
+        "started_at": datetime.now(UTC).isoformat(), **metadata,
+    })
+    return output
+
+
+def execute(
+    settings: Settings,
+    device_name: str,
+    platform: str,
+    job: SearchJob,
+    *,
+    capture: bool = True,
+    frida: bool = False,
+    dry_run: bool = False,
+    lease: FileLock | None = None,
+    checkpoint: Callable[[], None] = lambda: None,
+) -> dict:
+    if platform != "instagram":
+        raise ValueError("Only Instagram search automation is implemented.")
+    if platform not in settings.platforms:
+        raise ValueError("Platform configuration missing.")
+    device = resolve(settings, device_name)
+    if dry_run:
+        return {
+            "dry_run": True, "platform": platform, "device": device_name,
+            "adb_serial": device.adb_serial, "job": job.model_dump(),
+            "capture": capture, "frida": frida,
+        }
+    fingerprint = job_fingerprint(job, capture=capture, frida=frida)
+    completion = settings.state_dir / "completed" / platform / f"{job.job_id}.json"
+    with lock(settings, f"job-{platform}-{job.job_id}"), (
+        lease if lease is not None else lock(settings, f"device-{device_name}")
+    ):
+        if completion.exists():
+            previous = json.loads(completion.read_text(encoding="utf-8"))
+            if previous["fingerprint"] != fingerprint:
+                raise JobConflict("Job ID reused with different payload/options; refusing ambiguous replay.")
+            checkpoint()
+            return {**previous["result"], "already_completed": True}
+        checkpoint()
+        adb = ADB(device.adb_serial)
+        adb.ready(connect=True)
+        adb.require_package(settings.platforms[platform].package)
+        output = new_session(
+            settings, platform, device_name, job_id=job.job_id,
+            keyword=job.keyword, capture=capture, frida=frida,
+        )
+        def event(phase):
+            append_json(output / "events.jsonl", {
+                "job_id": job.job_id, "phase": phase, "at": datetime.now(UTC).isoformat(),
+            })
+
+        try:
+            event("session_started")
+            with ExitStack() as stack:
+                proxy = None
+                if capture:
+                    from sniffer.integrations.mitmproxy import ProxyCapture
+                    proxy = stack.enter_context(ProxyCapture(settings, device, output))
+                    event("capture_ready")
+                from sniffer.integrations.appium import connect
+                driver = connect(device, settings.platforms[platform])
+                stack.callback(driver.quit)
+                if frida:
+                    from sniffer.integrations.frida import Instrumentation
+                    stack.enter_context(Instrumentation(device, settings.platforms[platform], output))
+                driver.activate_app(settings.platforms[platform].package)
+                event("application_activated")
+
+                def health():
+                    checkpoint()
+                    if proxy:
+                        proxy.require_alive()
+
+                from sniffer.platforms.instagram.executor import search
+                event("search_started")
+                result = search(driver, settings.platforms[platform], job, health)
+                event("search_finished")
+                # Allow responses triggered by the last action to arrive.
+                if proxy:
+                    for _ in range(5):
+                        health()
+                        time.sleep(0.2)
+                health()
+            checkpoint()
+            traffic_file = output / "requests.jsonl"
+            count = 0
+            if traffic_file.exists():
+                with traffic_file.open(encoding="utf-8") as handle:
+                    count = sum(1 for line in handle if json.loads(line)["kind"] != "transport_error")
+            if capture and count == 0:
+                raise RuntimeError(
+                    "No matching HTTP responses captured. Check proxy, trust, domains, and app transport."
+                )
+            result.update(job_id=job.job_id, output=str(output.resolve()))
+            result["captured_responses"] = count
+            result["semantic_search_results_verified"] = False
+            event("completed")
+            atomic_json(output / "result.json", result)
+            atomic_json(completion, {"fingerprint": fingerprint, "result": result})
+            return result
+        except BaseException as error:
+            event("failed")
+            atomic_json(output / "failure.json", {
+                "job_id": job.job_id, "error_type": type(error).__name__,
+                "finished_at": datetime.now(UTC).isoformat(),
+            })
+            raise

@@ -1,0 +1,60 @@
+# Run from the repository root. Copy to config/local.yaml for server overrides.
+state_dir: .state
+output_dir: output
+# Dedicated CA/config directory; point to your EXISTING mitmproxy confdir only deliberately.
+mitm_confdir: .state/mitmproxy
+devices:
+  android01:
+    adb_serial: "127.0.0.1:5555"
+    container: android01
+    appium_url: "http://127.0.0.1:4723"
+    system_port: 8201
+    proxy_host: "127.0.0.1"
+    proxy_port: 8081
+    # frida_endpoint: "127.0.0.1:27042"  # explicit, reachable frida-server
+  android02:
+    adb_serial: "127.0.0.1:5556"
+    container: android02
+    appium_url: "http://127.0.0.1:4723"
+    system_port: 8202
+    proxy_host: "127.0.0.1"
+    proxy_port: 8082
+stf:
+  compose_project: stf
+beanstalk:
+  host: "127.0.0.1"
+  port: 11300
+  instagram_tube: sniffer.instagram
+  reserve_timeout: 5
+  touch_interval: 20
+  retry_delay: 30
+  max_reserves: 3
+redroid:
+  # Set to an audited, locally available Magisk image, preferably with @sha256 digest.
+  # No unverified third-party Magisk image is pulled automatically.
+  image: null
+  data_dir: data/redroid
+  boot_args:
+    - androidboot.redroid_width=1080
+    - androidboot.redroid_height=1920
+    - androidboot.redroid_dpi=320
+platforms:
+  instagram:
+    package: com.instagram.android
+    domains: [instagram.com, cdninstagram.com]
+    frida_scripts: []  # e.g. shared/observe.js; this is NOT a TLS bypass
+    selectors:
+      search_tab:
+        - ["accessibility id", "Search and explore"]
+        - ["accessibility id", "Search"]
+        - ["accessibility id", "Cari"]
+      search_input:
+        - ["id", "com.instagram.android:id/action_bar_search_edit_text"]
+        - ["class name", "android.widget.EditText"]
+      results:
+        - ["id", "com.instagram.android:id/recycler_view"]
+        - ["class name", "androidx.recyclerview.widget.RecyclerView"]
+  tiktok:
+    package: com.zhiliaoapp.musically
+    domains: [tiktok.com, tiktokv.com, tiktokcdn.com]
+    frida_scripts: []

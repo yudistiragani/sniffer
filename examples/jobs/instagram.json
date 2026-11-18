@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "job_id": "ig-search-0001",
+  "action": "search",
+  "keyword": "kopi lokal",
+  "scroll_count": 5,
+  "scroll_pause_ms": 1500
+}
