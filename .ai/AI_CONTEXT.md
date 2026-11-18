@@ -233,7 +233,7 @@ native realm; plain Frida17 scripts do not automatically include it. The one-run
 Instagram endpoint/script CLI overrides avoid changing YAML or registry. Native
 TLS capture is still blocked until proven otherwise; agent has not operated server.
 
-Local validation after diagnostic/error-reporting additions: 115 tests pass, Ruff and git diff
+Local validation after diagnostic/error-reporting additions: 119 tests pass, Ruff and git diff
 checks clean, wheel/sdist build succeeds. Node executes the actual TLS observer in
 simulated GumJS to test machine guards, non-mutating callbacks, cleanup, and event
 limits. These are not real Android TLS/interception tests. Runtime inspector,
@@ -253,3 +253,14 @@ retry or fallback was added. Next operator action: after updating code, at most
 one deliberate metadata-only retry to collect the original error, if they elect
 to continue; stop on crash. Do not switch APKs, patch memory, or restart services
 based only on the generic ProtocolError.
+
+The one deliberate retry now exposes the detail: attach emulated to IG pid29689
+failed in ~1.4s with ProtocolError "the connection is closed", before script load.
+This is Frida attach/channel failure, not a mitmproxy HTTP/TLS error. It does NOT
+identify anti-Frida, a certificate verifier, or a proven root cause in Houdini.
+Stop emulated retries. Next: one native TLS observer run in the realm with prior
+successful metadata attach, without bypassing certificate decisions. Native view
+may miss ARM app libraries; no observed native calls does not prove no pinning.
+Use --no-frida-spawn so missing/background IG causes failure rather than restart;
+open IG manually beforehand, keep server/forward, no concurrent worker/inspect.
+Inspect frida.jsonl for hook/call metadata even if UI search still spins.

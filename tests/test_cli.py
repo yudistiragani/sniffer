@@ -96,3 +96,21 @@ def test_frida_inspect_cli_forwards_explicit_realm(monkeypatch):
     assert seen == {
         "device": "android01", "endpoint": "127.0.0.1:27052", "realm": "emulated", "duration": 1
     }
+
+
+def test_frida_attach_only_dry_run():
+    result = runner.invoke(app, [
+        "automation", "instagram", "search", "--device", "android01", "--keyword", "coffee",
+        "--no-capture", "--frida", "--no-frida-spawn", "--dry-run",
+    ])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["frida"] is True and data["frida_spawn"] is False
+
+
+def test_attach_only_without_frida_is_rejected():
+    result = runner.invoke(app, [
+        "automation", "instagram", "search", "--device", "android01", "--keyword", "coffee",
+        "--no-capture", "--no-frida-spawn", "--dry-run",
+    ])
+    assert result.exit_code == 1 and "requires --frida" in result.output

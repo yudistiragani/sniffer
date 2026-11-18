@@ -53,6 +53,7 @@ def execute(
     *,
     capture: bool = True,
     frida: bool = False,
+    frida_spawn: bool = True,
     dry_run: bool = False,
     lease: FileLock | None = None,
     checkpoint: Callable[[], None] = lambda: None,
@@ -61,18 +62,22 @@ def execute(
         raise ValueError("Only Instagram search automation is implemented.")
     if platform not in settings.platforms:
         raise ValueError("Platform configuration missing.")
+    if not frida_spawn and not frida:
+        raise ValueError("--no-frida-spawn requires --frida.")
     device = resolve(settings, device_name)
     if dry_run:
         return {
             "dry_run": True, "platform": platform, "device": device_name,
             "adb_serial": device.adb_serial, "job": job.model_dump(),
             "capture": capture, "frida": frida,
+            "frida_spawn": frida_spawn if frida else False,
         }
     fingerprint = job_fingerprint(
         job, capture=capture, frida=frida,
         frida_options={
             "endpoint": device.frida_endpoint, "device_id": device.frida_device_id,
             "scripts": settings.platforms[platform].frida_scripts,
+            "allow_spawn": frida_spawn,
         } if frida else None,
     )
     completion = settings.state_dir / "completed" / platform / f"{job.job_id}.json"
@@ -93,6 +98,7 @@ def execute(
             settings, platform, device_name, job_id=job.job_id,
             keyword=job.keyword, capture=capture, frida=frida,
             frida_scripts=settings.platforms[platform].frida_scripts if frida else [],
+            frida_spawn=frida_spawn if frida else False,
         )
         logger.info("Session output=%s", output.resolve())
         def event(phase):
@@ -114,11 +120,22 @@ def execute(
                 if frida:
                     from sniffer.integrations.frida import Instrumentation
                     instrumentation = stack.enter_context(
-                        Instrumentation(device, settings.platforms[platform], output)
+                        Instrumentation(
+                            device, settings.platforms[platform], output, allow_spawn=frida_spawn,
+                        )
                     )
                     instrumentation.check()
-                driver.activate_app(settings.platforms[platform].package)
-                event("application_activated")
+                if frida and not frida_spawn:
+                    if driver.current_package != settings.platforms[platform].package:
+                        raise RuntimeError(
+                            "Attach-only mode requires Instagram already open in the foreground; "
+                            "no app was activated."
+                        )
+                    instrumentation.check()
+                    event("application_foreground_verified")
+                else:
+                    driver.activate_app(settings.platforms[platform].package)
+                    event("application_activated")
 
                 def health():
                     checkpoint()

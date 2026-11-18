@@ -166,3 +166,32 @@ def test_empty_capture_is_not_acknowledged_as_success(settings, monkeypatch):
         )
     assert not (settings.state_dir / "completed/instagram/empty.json").exists()
     driver.quit.assert_called_once()
+
+
+@pytest.mark.parametrize("foreground", [True, False])
+def test_attach_only_never_activates_or_spawns_app(settings, monkeypatch, foreground):
+    driver = MagicMock()
+    driver.current_package = "com.instagram.android" if foreground else "com.android.launcher3"
+    monkeypatch.setattr(executor, "ADB", lambda *_: MagicMock())
+    monkeypatch.setattr("sniffer.integrations.appium.connect", lambda *_: driver)
+    instrumentation = MagicMock()
+    monkeypatch.setattr("sniffer.integrations.frida.Instrumentation", instrumentation)
+    search = MagicMock(return_value={"scrolls": 0})
+    monkeypatch.setattr("sniffer.platforms.instagram.executor.search", search)
+    job = SearchJob(job_id="attach-only", keyword="coffee", scroll_count=0)
+    if foreground:
+        executor.execute(
+            settings, "android01", "instagram", job,
+            capture=False, frida=True, frida_spawn=False,
+        )
+        search.assert_called_once()
+    else:
+        with pytest.raises(RuntimeError, match="already open in the foreground"):
+            executor.execute(
+                settings, "android01", "instagram", job,
+                capture=False, frida=True, frida_spawn=False,
+            )
+        search.assert_not_called()
+    assert instrumentation.call_args.kwargs["allow_spawn"] is False
+    driver.activate_app.assert_not_called()
+    driver.quit.assert_called_once()

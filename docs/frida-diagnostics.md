@@ -60,13 +60,16 @@ second instance or take over unknown forwards. Open Instagram manually so the ad
 can attach to its existing PID; running PID is obtained with ADB pidof rather than
 Frida enumerate_applications. Only if no running PID exists does the generic adapter
 attempt spawn (not proven stable in this environment). Do not clear account data.
+For the native observer diagnostic, always use `--no-frida-spawn`. This disables
+the spawn fallback AND Appium activation; open IG manually in foreground first.
+If the app disappears or is backgrounded, the run fails without launching it.
 
 After pushing/pulling this code, in the Redroid server's repo:
 
 ```bash
 uv run --extra automation --extra frida sniffer automation instagram search \
   --device android01 --keyword "kopi lokal" --scroll-count 1 \
-  --no-capture --frida --frida-endpoint 127.0.0.1:27052 \
+  --no-capture --frida --no-frida-spawn --frida-endpoint 127.0.0.1:27052 \
   --frida-script shared/tls_observer.js
 ```
 

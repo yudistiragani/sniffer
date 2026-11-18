@@ -370,9 +370,18 @@ def instagram_search(
         list[str] | None,
         typer.Option("--frida-script", help="Packaged .js resource; repeatable; requires --frida."),
     ] = None,
+    frida_spawn: Annotated[
+        bool,
+        typer.Option(
+            "--frida-spawn/--no-frida-spawn",
+            help="Disable to require running, foreground Instagram; no spawn/activation.",
+        ),
+    ] = True,
     dry_run: bool = False,
 ):
     settings: Settings = ctx.obj
+    if not frida_spawn and not frida:
+        raise ValueError("--no-frida-spawn requires --frida.")
     if frida_endpoint is not None or frida_script:
         if not frida:
             raise ValueError("Frida overrides require explicit --frida.")
@@ -391,7 +400,10 @@ def instagram_search(
         job_id=job_id or f"manual-{uuid.uuid4().hex}",
         keyword=keyword, scroll_count=scroll_count, scroll_pause_ms=scroll_pause_ms,
     )
-    emit(execute(settings, device, "instagram", job, capture=capture, frida=frida, dry_run=dry_run))
+    emit(execute(
+        settings, device, "instagram", job, capture=capture, frida=frida,
+        frida_spawn=frida_spawn, dry_run=dry_run,
+    ))
 
 
 @app.command("worker")

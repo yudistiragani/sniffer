@@ -20,12 +20,14 @@
 - First emulated inspect failed at attach with generic ProtocolError before script
   load. Server/IG were running in later snapshot; Binder pid17 crash excerpt is
   not enough to correlate a new IG crash. Original exception was hidden by CLI.
-- Updated attach error reporting: collect bounded/redacted original detail via one
-  deliberate metadata-only retry if operator continues. No automatic repeat,
-  APK/OS change, forced realm, memory patch, or service restart.
+- [x] One controlled retry produced ProtocolError "the connection is closed" at
+  emulated attach before script load. Stop emulated retries; cause remains unproven.
 - Prepared opt-in shared/tls_observer.js (no bypass), to use after realm/module view
   is known. Inspect hook availability/tls.call metadata, no automatic retry on crash.
   Root is available; Magisk is not a prerequisite.
+- Next one native TLS observer/search run using --no-frida-spawn; IG must already
+  be running/foreground. Never auto-restart a missing app in this diagnostic mode.
+  Read frida.jsonl; zero calls may mean the native view misses translated ARM TLS.
 - Native HTTPS capture is active priority; Beanstalk acceptance and image/OS
   migrations remain deferred. No APK switch or universal hook by guesswork.
 
@@ -49,7 +51,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **115 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
+Latest full run: **119 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
 installation was also exercised; the optional real-proxy test skips without capture extra.
 Observer JS is exercised under a Node-based simulated GumJS harness (Node optional
 for development, not a runtime requirement). This is not live native-hook validation.

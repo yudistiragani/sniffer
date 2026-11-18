@@ -65,6 +65,10 @@ mode in automation. Emulated-view compatibility still requires operator testing.
 Attach failures preserve original exception type and bounded/redacted detail in
 frida-attach-error.json, surfaced as RuntimeError so the CLI does not hide a generic
 ProtocolError. PID is logged to aid correlation; no automatic retry/fallback.
+`--no-frida-spawn` on one-shot search requires --frida, disables both Frida spawn
+and Appium activation, and requires IG already running/foreground. This guard is
+available for a deliberate native TLS observation after failed emulated attach.
+Frida remains in the native realm for search; no implicit emulated fallback.
 
 Recorder exports are redacted best-effort and bounded to 2 MiB encoded/decoded JSON;
 other bodies are metadata-only. Raw `.mitm` is opt-in and unredacted. Proxy CA/config
