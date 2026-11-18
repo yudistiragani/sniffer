@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.resources
 import json
 import logging
+import re
 import time
 from contextlib import AbstractContextManager
 from pathlib import Path
@@ -18,6 +19,26 @@ TLS_EVENTS = {
     "tls.hook_ready", "tls.hook_error", "tls.module_ready", "tls.call", "tls.limit",
     "tls.export_outside_module", "tls.runtime_probe",
 }
+
+
+def safe_attach_detail(error: Exception) -> str:
+    """Bound/sanitize an attach error; never serialize raw exception args or traceback."""
+    text = str(error)[:4096]
+    text = re.sub(
+        r"-----BEGIN [^-]+-----.*?(?:-----END [^-]+-----|$)",
+        "[REDACTED PEM]", text, flags=re.S,
+    )
+    text = " ".join("".join(c if c.isprintable() else " " for c in text).split())
+    text = re.sub(r"(?i)(https?|wss?)://[^/\s@]+@", r"\1://[REDACTED]@", text)
+    text = re.sub(
+        r"""(?i)\b((?:access_|refresh_)?token|(?:client_)?secret|password|passwd|api[_-]?key|private_key)["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)""",
+        r"\1=[REDACTED]", text,
+    )
+    text = re.sub(
+        r"""(?i)\b(authorization|set-cookie|cookie)["']?\s*[:=].*$""",
+        r"\1=[REDACTED]", text,
+    )
+    return text[:800] or "(no error detail)"
 
 
 class Instrumentation(AbstractContextManager):
@@ -65,7 +86,7 @@ class Instrumentation(AbstractContextManager):
             if len(pids) > 1 or any(not p.isdecimal() or int(p) <= 0 for p in pids):
                 raise RuntimeError("Application PID is ambiguous; no process was attached.")
             pid = int(pids[0]) if pids else None
-            logger.info("Frida pid_lookup status=END running=%s", pid is not None)
+            logger.info("Frida pid_lookup status=END running=%s pid=%s", pid is not None, pid)
             if not pid:
                 if not self.allow_spawn:
                     raise RuntimeError("Instagram is not running; open it manually before inspect.")
@@ -78,15 +99,32 @@ class Instrumentation(AbstractContextManager):
                     else target.attach(pid, realm=self.realm)
                 )
             except Exception as error:
+                detail = safe_attach_detail(error)
+                path = self.output / "frida-attach-error.json"
+                try:
+                    atomic_json(path, {
+                        "phase": "attach", "realm": self.realm, "pid": pid,
+                        "error_type": type(error).__name__, "error_message": detail,
+                    })
+                except OSError:
+                    logger.warning("Frida attach diagnostics could not be written.")
+                logger.error(
+                    "Frida attach status=FAILED realm=%s error_type=%s diagnostics=%s",
+                    self.realm, type(error).__name__, path,
+                )
                 if self.realm == "emulated" and (
                     type(error).__name__ == "NotSupportedError"
                     or "process is not using emulation" in str(error).lower()
                 ):
                     raise RuntimeError(
                         "Frida could not expose the emulated realm for this process. "
+                        f"Detail: {detail}. "
                         "Stop here; do not change APK, patch memory, or retry automatically."
                     ) from error
-                raise
+                raise RuntimeError(
+                    f"Frida attach failed ({type(error).__name__}, realm={self.realm}): "
+                    f"{detail}. Diagnostics: {path}"
+                ) from error
             logger.info("Frida attach status=END realm=%s", self.realm)
             self.session.on("detached", self._detached)
             root = Path(str(importlib.resources.files("sniffer").joinpath("scripts"))).resolve()

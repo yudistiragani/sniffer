@@ -1,10 +1,11 @@
+import json
 import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
-from sniffer.integrations.frida import Instrumentation
+from sniffer.integrations.frida import Instrumentation, safe_attach_detail
 
 
 @pytest.fixture(autouse=True)
@@ -243,3 +244,48 @@ def test_inspect_without_snapshot_is_not_success(settings, monkeypatch):
     with pytest.raises(RuntimeError, match="no runtime snapshot"):
         integration.inspect_runtime(settings, "android01", "127.0.0.1:27052", "native", 1)
     assert list(settings.output_dir.glob("*/failure.json"))
+
+
+@pytest.mark.parametrize("text,secrets", [
+    ("RPC error password='private value'; token=private-token", ["private value", "private-token"]),
+    ("RPC error Authorization: Bearer private-token", ["private-token"]),
+    ("RPC ws://private-user:private-pass@127.0.0.1:27052", ["private-user", "private-pass"]),
+    ("RPC 'client_secret': 'private-value'", ["private-value"]),
+    ("RPC -----BEGIN PRIVATE KEY-----\nprivate-data\n-----END PRIVATE KEY-----", ["private-data"]),
+])
+def test_attach_error_detail_redacts_sensitive_values(text, secrets):
+    detail = safe_attach_detail(RuntimeError(text))
+    assert all(secret not in detail for secret in secrets)
+    assert "[REDACTED" in detail
+
+
+def test_attach_error_detail_is_bounded_and_printable():
+    assert len(safe_attach_detail(RuntimeError("x" * 10000))) == 800
+    assert "\n" not in safe_attach_detail(RuntimeError("RPC\nprotocol\x1b failure"))
+    assert safe_attach_detail(RuntimeError("")) == "(no error detail)"
+
+
+def test_protocol_error_is_actionable_without_loading_script(settings, monkeypatch, tmp_path):
+    class ProtocolError(Exception):
+        pass
+    target, manager = MagicMock(), MagicMock()
+    manager.add_remote_device.return_value = target
+    target.attach.side_effect = ProtocolError("RPC channel closed while attaching")
+    monkeypatch.setitem(sys.modules, "frida", SimpleNamespace(get_device_manager=lambda: manager))
+    settings.devices["android01"].frida_endpoint = "127.0.0.1:27052"
+    settings.platforms["instagram"].frida_scripts = ["shared/runtime_probe.js"]
+    with pytest.raises(RuntimeError, match="RPC channel closed") as error:
+        with Instrumentation(
+            settings.devices["android01"], settings.platforms["instagram"], tmp_path,
+            realm="emulated", allow_spawn=False,
+        ):
+            pass
+    assert "ProtocolError" in str(error.value)
+    recorded = json.loads((tmp_path / "frida-attach-error.json").read_text())
+    assert recorded == {
+        "phase": "attach", "realm": "emulated", "pid": 123,
+        "error_type": "ProtocolError", "error_message": "RPC channel closed while attaching",
+    }
+    target.attach.assert_called_once_with(123, realm="emulated")
+    target.attach.return_value.create_script.assert_not_called()
+    target.spawn.assert_not_called()

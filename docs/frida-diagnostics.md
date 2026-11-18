@@ -30,6 +30,12 @@ the TLS observer, run Appium, alter Android proxy, start a Frida server, or modi
 certificates. Native default is also available with `--realm native`.
 Inspect actual arch/module paths; unsupported emulated realm or a crash is a
 diagnostic result, not permission to inject again automatically.
+If attach fails, the console now includes a bounded/sanitized error detail and
+the session contains `frida-attach-error.json` (phase/realm/PID/original error type).
+This helps diagnose ProtocolError without dumping exception arguments, app memory,
+request bodies, or traceback. Redaction is best-effort; review before sharing.
+An old crash-buffer entry or a changed PID without clock/attempt correlation does
+not establish that this attach crashed the application. Do not loop retry.
 Java instrumentation belongs in the native realm; Frida17's plain script API does
 not automatically bundle a Java bridge. No Java hook is supplied here.
 

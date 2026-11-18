@@ -233,8 +233,23 @@ native realm; plain Frida17 scripts do not automatically include it. The one-run
 Instagram endpoint/script CLI overrides avoid changing YAML or registry. Native
 TLS capture is still blocked until proven otherwise; agent has not operated server.
 
-Local validation after diagnostic additions: 108 tests pass, Ruff and git diff
+Local validation after diagnostic/error-reporting additions: 115 tests pass, Ruff and git diff
 checks clean, wheel/sdist build succeeds. Node executes the actual TLS observer in
 simulated GumJS to test machine guards, non-mutating callbacks, cleanup, and event
 limits. These are not real Android TLS/interception tests. Runtime inspector,
 emulated realm, and TLS observer still require user-operated server testing.
+
+User's first emulated inspect failed during attach with ProtocolError (before
+script load). At subsequent observation frida-server pid29133 and IG main pid29689
+were running, with IG fbns pid29485. The crash buffer excerpt referenced Binder
+pid17 at02:15, not enough to attribute a crash to this attempt (clock correlation
+unknown). Do NOT conclude emulated support, anti-Frida detection, or that no
+restart ever occurred from these snapshots.
+
+The CLI previously hid the original ProtocolError string. Attach exceptions now
+become actionable RuntimeErrors with bounded/sanitized detail, and a
+frida-attach-error.json includes realm/pid/phase/original type/detail. No automatic
+retry or fallback was added. Next operator action: after updating code, at most
+one deliberate metadata-only retry to collect the original error, if they elect
+to continue; stop on crash. Do not switch APKs, patch memory, or restart services
+based only on the generic ProtocolError.

@@ -17,9 +17,12 @@
 - Tune scroll geometry/speed after this baseline if requested; do not change it
   blindly without target dimensions/result layout.
 - [x] Controlled proxy-on retest still fails native Instagram TLS; search spins.
-- Test `frida inspect --realm emulated` metadata-only first: translated ARM libraries
-  may be absent from native ia32 enumeration. Command never spawns or hooks TLS.
-  Stop if unsupported/crashed; do not force a realm or patch memory.
+- First emulated inspect failed at attach with generic ProtocolError before script
+  load. Server/IG were running in later snapshot; Binder pid17 crash excerpt is
+  not enough to correlate a new IG crash. Original exception was hidden by CLI.
+- Updated attach error reporting: collect bounded/redacted original detail via one
+  deliberate metadata-only retry if operator continues. No automatic repeat,
+  APK/OS change, forced realm, memory patch, or service restart.
 - Prepared opt-in shared/tls_observer.js (no bypass), to use after realm/module view
   is known. Inspect hook availability/tls.call metadata, no automatic retry on crash.
   Root is available; Magisk is not a prerequisite.
@@ -46,7 +49,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **108 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
+Latest full run: **115 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
 installation was also exercised; the optional real-proxy test skips without capture extra.
 Observer JS is exercised under a Node-based simulated GumJS harness (Node optional
 for development, not a runtime requirement). This is not live native-hook validation.

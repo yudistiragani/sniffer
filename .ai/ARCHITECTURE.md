@@ -62,6 +62,9 @@ It uses only runtime_probe.js and disables spawn; caller explicitly selects nati
 or emulated realm. Houdini's emulated realm may expose otherwise hidden ARM libs.
 It does NOT activate the TLS observer, alter proxy, or silently enable emulated
 mode in automation. Emulated-view compatibility still requires operator testing.
+Attach failures preserve original exception type and bounded/redacted detail in
+frida-attach-error.json, surfaced as RuntimeError so the CLI does not hide a generic
+ProtocolError. PID is logged to aid correlation; no automatic retry/fallback.
 
 Recorder exports are redacted best-effort and bounded to 2 MiB encoded/decoded JSON;
 other bodies are metadata-only. Raw `.mitm` is opt-in and unredacted. Proxy CA/config
