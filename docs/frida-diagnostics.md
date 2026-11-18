@@ -17,7 +17,8 @@ https://frida.re/news/2021/02/10/frida-14-2-released/ .
 This API exists but does NOT guarantee emulated attachment works on every Redroid
 build; do not auto-retry on an error or modify the APK/memory to force it.
 
-Open Instagram manually, then use a metadata-only probe:
+Historical metadata-only probe (do NOT repeat on this device: emulated attach
+already failed with `ProtocolError: the connection is closed` before script load):
 
 ```bash
 uv run --extra frida sniffer frida inspect --device android01 \
@@ -37,7 +38,8 @@ request bodies, or traceback. Redaction is best-effort; review before sharing.
 An old crash-buffer entry or a changed PID without clock/attempt correlation does
 not establish that this attach crashed the application. Do not loop retry.
 Java instrumentation belongs in the native realm; Frida17's plain script API does
-not automatically bundle a Java bridge. No Java hook is supplied here.
+not automatically bundle a Java bridge. The REPL Java observer below requires
+that bridge; it is not supported by the project's plain Python script loader.
 
 `shared/tls_observer.js` observes calls/return metadata of selected exported native
 SSL/crypto functions. It never replaces functions, args, callbacks, return values,
@@ -94,9 +96,60 @@ The code writes script errors and checks unexpected detach between UI operations
 It does not automatically relaunch a crashed app, kill external services, remove
 forwards, install CA/Magisk, or modify the APK.
 
+## Java TLS observer: next controlled diagnostic
+
+The operator's official REPL probe returned `arch=ia32`, `bridgeLoaded=true`,
+`javaAvailable=true` in native realm. This confirms Java access, not hook stability.
+The native observer installed six hooks but the supplied output had no `tls.call`.
+
+`shared/java_tls_observer.js` observes available overloads of Conscrypt
+`TrustManagerImpl.verifyChain/checkTrustedRecursive/checkServerTrusted` and known
+OkHttp `CertificatePinner.check/check$okhttp` methods. It forwards the exact
+receiver/arguments to the exact original overload and returns its result or
+rethrows the same exception. It does not change trust decisions.
+
+Events contain fixed class/method names, overload indices and coarse rejection
+categories only. Messages are inspected locally, bounded to4096 characters, never
+emitted. Categories are reported hints, not definitive root causes. No hostname,
+certificate, stack, request content or raw exception is exported. Logging is capped
+at200 events plus one limit marker; original calls continue after the cap.
+Missing/obfuscated classes, other class loaders, late-loaded classes and native
+verification may be missed. No class-loading hooks or SSL exception constructor
+hooks are installed. Zero events does not rule out pinning.
+
+After deploying the code, finish all workers/observers, open IG manually and keep
+the existing proxy/server/forward. Run once in native realm for30seconds, and
+manually trigger a search in STF after `java_tls.ready`. No Appium or worker
+should run concurrently. This REPL command does not acquire the project's device
+lock, so the operator must enforce exclusivity. Stop on crash; do not auto-retry.
+
+```bash
+(
+set -euo pipefail
+PID=$(adb -s 127.0.0.1:5555 shell pidof com.instagram.android | tr -d '\r') ||
+  { echo "Open Instagram manually first"; exit 1; }
+[[ "$PID" =~ ^[0-9]+$ ]] ||
+  { echo "STOP: expected one main Instagram PID"; exit 1; }
+uv run --extra frida \
+  --with "frida-tools==14.13.2" --with "frida==17.27.0" \
+  frida -H 127.0.0.1:27052 -p "$PID" --realm native \
+  -q -t 30 --exit-on-error \
+  -l src/sniffer/scripts/shared/java_tls_observer.js
+)
+```
+
+No spawn, eternalize, CA/proxy changes, service restart or automatic app launch.
+At timeout the REPL exits and unloads the observer. Share the `java_tls.*` metadata,
+especially ready/call/reject events; inspect locally first. If only hook_ready
+appears, do not infer that those methods handled the failed search.
+
 ## Local validation
 
 Node (optional, development only) executes the actual observer JS in a simulated
 GumJS environment during tests. Scenarios cover native/translated machine checks,
 missing/forwarded exports, attach errors, untouched args/returns, module unload/
 reload, and event limit. These tests do not verify real Android interception.
+The Java bridge simulation additionally checks exact argument/receiver/result
+preservation, exception identity, unavailable bridge/classes, partial hook failure,
+message classification/privacy, transport failures, and the logging cap. It is not
+a live Android/Conscrypt/OkHttp test.

@@ -264,3 +264,39 @@ may miss ARM app libraries; no observed native calls does not prove no pinning.
 Use --no-frida-spawn so missing/background IG causes failure rather than restart;
 open IG manually beforehand, keep server/forward, no concurrent worker/inspect.
 Inspect frida.jsonl for hook/call metadata even if UI search still spins.
+
+User's native TLS observer result (pid30270): ia32, pointerSize4, ELF machine3,
+hooks ready on /system/lib/libcrypto.so X509_verify_cert and five libssl.so APIs;
+libjavacrypto reports no additional hooks. Supplied output contains NO tls.call.
+Hook installation is not evidence those functions handle IG requests; do not
+replace returns or infer the app's verifier from this snapshot.
+`javaBridgeAvailable=false` in this observer means the global Java bridge was not
+bundled, NOT that the application has no Java/ART runtime. Frida17 removed bridges
+from plain create_script; official frida-tools REPL agents include them.
+Reference: https://frida.re/news/2025/05/17/frida-17-0-0-released/ .
+
+Next minimal native Java-availability probe uses an ephemeral pinned REPL:
+frida-tools14.13.2 (requires Frida>=17.26,<18) with Frida17.27.0 explicitly pinned,
+via uv run --with. CLI flags -p/--realm native/-q/-t/--exit-on-error were verified
+locally with --help; no actual Android attach by agent. No project dependency or
+lockfile change is needed. Only typeof Java/Java.available/Process.arch are read.
+Run only after previous observer/job completes; no simultaneous worker/inspect.
+This does not load Java trust hooks, alter certificates, or prove a bypass works.
+
+Operator's REPL Java probe succeeded: arch ia32, bridgeLoaded true,
+javaAvailable true. Native Java access is confirmed, not verifier-hook stability.
+Prepared shared/java_tls_observer.js for official REPL only, not Python
+create_script: available Conscrypt verifyChain/checkTrustedRecursive/
+checkServerTrusted and known OkHttp check/check$okhttp overloads, exact original
+receiver/arguments/results/exceptions. No bypass or exception-constructor hooks.
+At most200 metadata events plus limit marker; no arguments/raw messages/hosts/
+certificates/headers/stacks. Coarse reported_* categories are hints, not diagnosis.
+Missing/late/obfuscated classes and other class loaders/native paths may be missed.
+Next operator step: one30s native REPL attach to current main PID, manually search
+after java_tls.ready, no concurrent workers/observers. REPL has no project lock;
+operator must enforce exclusivity. No spawn/eternalize or device/service changes.
+Node simulations cover preservation, exception identity, categories/privacy, event
+limit, absent bridge/classes and failed logging. Actual Java hooks remain untested
+on Android by agent; remote native HTTPS capture remains blocked/unaccepted.
+Local validation after Java observer:125 tests passed, Ruff/diff checks clean,
+wheel/sdist build succeeded. These include simulations, not live TLS validation.

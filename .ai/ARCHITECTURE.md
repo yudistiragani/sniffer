@@ -70,6 +70,15 @@ and Appium activation, and requires IG already running/foreground. This guard is
 available for a deliberate native TLS observation after failed emulated attach.
 Frida remains in the native realm for search; no implicit emulated fallback.
 
+`shared/java_tls_observer.js` is a separate observe-only REPL script. Frida17's
+official REPL supplies Java; the plain Python loader does not. It wraps available
+Conscrypt verifier/OkHttp pinner overloads with exact original calls, unchanged
+results/exceptions and bounded sanitized metadata (200 events plus limit).
+It does not hook class loading, exception constructors, or alter TLS decisions.
+It may miss other loaders/late/obfuscated/native verification. REPL duration is
+bounded by the operator command; unlike CLI jobs it has no project device lock:
+operator exclusivity is mandatory. See docs/frida-diagnostics.md.
+
 Recorder exports are redacted best-effort and bounded to 2 MiB encoded/decoded JSON;
 other bodies are metadata-only. Raw `.mitm` is opt-in and unredacted. Proxy CA/config
 is isolated in configurable `mitm_confdir`; no CA is installed on Android.

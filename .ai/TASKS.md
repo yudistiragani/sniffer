@@ -28,6 +28,17 @@
 - Next one native TLS observer/search run using --no-frida-spawn; IG must already
   be running/foreground. Never auto-restart a missing app in this diagnostic mode.
   Read frida.jsonl; zero calls may mean the native view misses translated ARM TLS.
+- [x] User native observer: hooks installed on machine3 system libssl/libcrypto;
+  no tls.call in provided snapshot. Do not treat hook_ready as observed invocation.
+- [x] Native Java bridge availability probe via pinned ephemeral frida-tools REPL
+  (14.13.2 + Frida17.27.0), no trust hooks or bypass. Plain Frida17 scripts lack
+  Java bridge by default; observer's flagfalse does not mean IG lacks Java.
+- [x] User probe returned arch ia32, bridgeLoaded true, javaAvailable true.
+- [x] Prepared observe-only shared/java_tls_observer.js and Node Java-bridge
+  simulations; preserves exact original calls/results/exceptions, no bypass.
+- [ ] Operator: one bounded30s native REPL run, manually trigger search after
+  java_tls.ready; inspect actual call/reject metadata before targeting a verifier.
+  No concurrent job/observer (REPL does not take project lock), stop on crash.
 - Native HTTPS capture is active priority; Beanstalk acceptance and image/OS
   migrations remain deferred. No APK switch or universal hook by guesswork.
 
@@ -51,7 +62,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **119 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
+Latest full run: **125 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
 installation was also exercised; the optional real-proxy test skips without capture extra.
 Observer JS is exercised under a Node-based simulated GumJS harness (Node optional
 for development, not a runtime requirement). This is not live native-hook validation.
