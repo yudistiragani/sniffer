@@ -21,6 +21,9 @@ One worker owns one device lock. Each job creates a separate session directory.
 Capture starts before app interaction. Appium uses no-reset/auto-launch-disabled
 capabilities; Frida may attach/spawn before automation activates the app. The
 configured selectors are initial candidates, not verified against the user's app.
+The search-input ID was subsequently observed in a user-provided XML dump (not
+proof the whole flow works). Instagram UI actions emit per-step START/END/FAILED
+terminal logs, with named lookup timeouts and health checkpoints while polling.
 
 Standalone capture needs no Appium. Standalone automation can disable capture.
 mitmproxy addon runs in the mitmdump process; it imports parser/writer from this

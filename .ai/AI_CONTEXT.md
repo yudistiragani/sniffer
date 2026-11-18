@@ -68,3 +68,21 @@ Actual Magisk image selection/build remains pending: accepting a configurable im
 is not proof it contains working Magisk. No image has been pulled or created.
 The default parser records redacted `unmapped_json`, not normalized search results.
 Proxy provisioning is opt-in reverse/global-proxy setup, not full CA/root provisioning.
+
+## First server feedback and UI diagnosis
+
+User's doctor reports Android 9 / SDK28 / x86_64, ADB connected, Appium ready,
+Python extras present, Beanstalk reachable, and free system/proxy ports. This is
+user-supplied output, not agent-operated live acceptance. Frida target and CA trust
+remain unverified. User's UI-only search reached the search screen but did not type.
+
+Local `output/diagnostics/ig-search.xml` contains an enabled/clickable EditText with
+ID `com.instagram.android:id/action_bar_search_edit_text`, matching default config.
+At dump time it is empty and unfocused. This does NOT prove a locator mismatch or
+the need to tap an extra Explore bar. Original XML contains private search/account
+data: leave ignored in output/, never copy it wholesale into fixtures or docs.
+
+Search now logs START/END/FAILED per lookup, click, clear, type, submit, results,
+and scroll, without keyword/text or raw exception details. Named selector timeouts
+and health checks help identify which Appium call fails/stalls. This is diagnostic
+instrumentation, not a confirmed live fix; next step is rerun and collect those logs.
