@@ -30,12 +30,14 @@ mitm = typer.Typer(no_args_is_help=True)
 frida_cli = typer.Typer(no_args_is_help=True, help="Explicit Frida metadata diagnostics, no TLS bypass.")
 automation = typer.Typer(no_args_is_help=True)
 instagram = typer.Typer(no_args_is_help=True)
+parse_cli = typer.Typer(no_args_is_help=True, help="Offline parsing; no network or device access.")
 app.add_typer(devices, name="device")
 app.add_typer(stf, name="stf")
 app.add_typer(appium, name="appium")
 app.add_typer(mitm, name="mitmproxy")
 app.add_typer(frida_cli, name="frida")
 app.add_typer(automation, name="automation")
+app.add_typer(parse_cli, name="parse")
 automation.add_typer(instagram, name="instagram")
 DeviceOption = Annotated[str, typer.Option("--device", "-d", help="Configured device name.")]
 
@@ -68,6 +70,19 @@ def emit(value):
 
 def on_terminate(*_):
     raise KeyboardInterrupt
+
+
+@parse_cli.command("instagram-search")
+@guarded
+def parse_instagram_search(
+    request: Annotated[Path, typer.Option(help="JSON metadata with method/url/content_type/body.")],
+    response: Annotated[Path, typer.Option(help="Decoded response body, JSON or JSON sequence.")],
+    keyword: Annotated[str, typer.Option(help="Expected exact search keyword.")],
+    output: Annotated[Path, typer.Option(help="New, nonexistent output directory.")],
+):
+    """Normalize an exported TopSerpQuery response; does not attach to remote mitmweb."""
+    from sniffer.capture.offline import parse_instagram_search as parse_export
+    emit(parse_export(request, response, keyword, output))
 
 
 @app.callback()

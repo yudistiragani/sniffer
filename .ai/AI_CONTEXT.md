@@ -103,7 +103,8 @@ uv run sniffer device start android03
 
 Actual Magisk image selection/build remains pending: accepting a configurable image
 is not proof it contains working Magisk. No image has been pulled or created.
-The default parser records redacted `unmapped_json`, not normalized search results.
+Unknown endpoints retain redacted `unmapped_json`; the later TopSerp parser
+implementation and operator keyword-capture evidence are recorded below.
 Proxy provisioning is opt-in reverse/global-proxy setup, not full CA/root provisioning.
 
 ## First server feedback and UI diagnosis
@@ -417,3 +418,66 @@ HTTP host/status/time in remote mitmweb, not just more Frida events.
 Local validation after exact-CDN update:165 tests passed, Ruff/diff clean,
 wheel/sdist build succeeded. New simulations allow approved CDN and reject its
 suffix-spoof and a different regional CDN. Live expanded scope remains untested.
+
+Latest user evidence (2026-11-18): remote mitmweb exposes readable native response
+from https://i.instagram.com/api/v1/feed/timeline/ with status="ok" and populated
+feed_items. This establishes HTTPS decryption/capture for that timeline endpoint,
+not just server-connect metadata. Body status is not an observed HTTP status code.
+Timeline is home-feed traffic, not proof of keyword-search response extraction.
+No raw sample copied: supplied content includes cookies, tracking tokens,
+identifiers and signed media URLs. Consecutive JSON objects in the paste do not
+establish framing/Content-Type; do not assume a single standard JSON document.
+NEXT correlate a fresh controlled keyword search with request time and keyword;
+obtain sanitized host/path/method/HTTP status/Content-Type and response shape.
+Do not repeat CA/realm setup or broaden hooks just to re-prove timeline capture.
+Remote recorder/output transport, semantic search parsing, repeated-run stability
+and worker acceptance remain pending. Agent has not operated the remote device.
+
+## Keyword-search response evidence and parser implementation
+
+Operator subsequently supplied POST https://i.instagram.com/graphql/query with
+form operation TopSerpQuery and variables.query="kopi toraja"; pagination=true
+with an after cursor. Paired response has manual_pagination_query.edges[].node
+MEDIA_GRID items, XDTMediaDict photos/video/reel/carousel. This is direct evidence
+of native keyword-search capture for that operator run, not just Explore/timeline.
+The excerpt shows20 parent items and deferred SerpClipsViewerFragment docs adding
+caption/counts/user metadata, plus TopSerpPagingInfo__force_flush (has_next_page).
+Every supplied final flag isfalse: do not claim whole-response completion.
+Actual HTTP status and Content-Type/wire framing still not supplied. No raw sample
+values/contacts/identifiers/cursors/signed URLs saved to project.
+
+An intervening native attach failed "connection closed": user read-only output
+showed ADB forward intact, no visible server process/device27052 listener, binary
+still17.27.0. Operator restarted the SAME binary in a dedicated foreground shell,
+then continued the bounded trial + one --no-frida/--no-capture Appium run. Agent
+did not execute remote commands. Server stop cause remains unknown; no emulated
+retry, CA/APK/OS/proxy/host-allowlist change or persistent trial was introduced.
+
+User approved implementation and switched to Build. Added shared bounded UTF-8
+JSON-sequence decoder, IG416 observed-shape parser, recorder routing by exact
+host/path/method/form operation/query, deferred path+media-ID merge, parent-post
+deduplication, selected normalized fields and explicit partial/invalid outcomes.
+GraphQL errors/unsupported paths/units/limits/missing final block completeness.
+Request operation/query/pagination only survive; signed media querystrings,
+tracking/session/cursor values and manifests are not exported by this parser.
+Captions/user fields remain personal data requiring restricted retention.
+Unknown JSON endpoint behavior remains unmapped_json; no blanket recursive search.
+
+Recorder writes per-flow normalized requests.jsonl and atomic enriched posts.jsonl
+snapshot keyed(keyword,parent ID), bounded10k posts/32MiB. Local executor semantic
+flag now requires >=1 exact-keyword complete2xx response with nonempty posts;
+partial response counts remain explicit. No change to worker default/ACK policy.
+Offline base-only CLI: sniffer parse instagram-search --request request.json
+--response response.body --keyword ... --output NEW_DIRECTORY. Minimal request
+metadata format and limitations in docs/instagram-search-parsing.md; no device,
+network, proxy attachment or automatic remote-output transport.
+Tests use authored synthetic structural fixtures ONLY. TLS trial/script untouched.
+NEXT operator export complete decoded response + minimal paired request metadata,
+run offline parser and inspect summary/posts. Remote recorder deployment/transport,
+job correlation, repeated-run stability and end-to-end queue acceptance still pending.
+
+Local validation after parser implementation:240 tests passed, Ruff/diff checks
+clean, wheel/sdist built. New modules confirmed in wheel; offline imports do not
+load mitmproxy/Appium/Frida. Includes actual local HTTP proxy smoke, simulated
+recorder/executor and synthetic JSON-sequence/CLI tests, NOT remote IG parser
+acceptance. No dependencies/lockfile/TLS scripts changed and no deployment performed.

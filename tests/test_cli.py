@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+from urllib.parse import urlencode
 
 from typer.testing import CliRunner
 
@@ -114,3 +116,38 @@ def test_attach_only_without_frida_is_rejected():
         "--no-capture", "--no-frida-spawn", "--dry-run",
     ])
     assert result.exit_code == 1 and "requires --frida" in result.output
+
+
+def test_offline_parser_cli_without_integrations(tmp_path, monkeypatch):
+    import sniffer.executor
+    monkeypatch.setattr(sniffer.executor, "ADB", lambda *_: (_ for _ in ()).throw(
+        AssertionError("Offline parser must not access a device")
+    ))
+    request = tmp_path / "request.json"
+    request.write_text(json.dumps({
+        "method": "POST", "url": "https://i.instagram.com/graphql/query",
+        "content_type": "application/x-www-form-urlencoded",
+        "body": urlencode({
+            "fb_api_req_friendly_name": "TopSerpQuery",
+            "variables": json.dumps({"query": "coffee test"}),
+        }),
+    }))
+    result = runner.invoke(app, [
+        "parse", "instagram-search", "--request", str(request),
+        "--response", str(Path(__file__).parent / "fixtures/top_serp_synthetic.jsonseq"),
+        "--keyword", "coffee test", "--output", str(tmp_path / "parsed"),
+    ])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["post_count"] == 3
+    assert "PRIVATE" not in result.output
+
+
+def test_offline_cli_invalid_metadata_does_not_echo_body(tmp_path):
+    request = tmp_path / "bad.json"
+    request.write_text('{"body":"PRIVATE_INPUT",')
+    result = runner.invoke(app, [
+        "parse", "instagram-search", "--request", str(request),
+        "--response", "unused", "--keyword", "coffee", "--output", str(tmp_path / "parsed"),
+    ])
+    assert result.exit_code == 1 and "PRIVATE_INPUT" not in result.output
+    assert not (tmp_path / "parsed").exists()

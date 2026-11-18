@@ -18,9 +18,12 @@ commands or `exec()` of source files. Third-party integrations are lazy imports.
 ## Execution
 
 Validated baseline: Appium only with proxy off, `--no-capture`, Frida disabled.
-Current goal: native Instagram traffic readable in remote mitmproxy. Proxy-on
-testing still fails native-app TLS. No Frida server/script is presumed available;
-bootstrap/version and minimal-attach stability must precede app-specific hooks.
+User supplied readable native timeline JSON, then a paired TopSerpQuery
+request/response with the controlled keyword in remote mitmproxy after the
+separately approved trial. Keyword-search capture is evidenced for that run;
+parser live-output acceptance and remote recorder integration remain unverified.
+Frida bootstrap/version and native minimal-attach were operator-verified;
+no generic bypass or long-running stability is implied.
 Optional integrations are never activated, or external services stopped, implicitly.
 
 One worker owns one device lock. Each job creates a separate session directory.
@@ -29,7 +32,8 @@ capabilities; Frida may attach/spawn before automation activates the app. The
 configured selectors are initial candidates, not verified against the user's app.
 The search-input ID was subsequently observed in a user-provided XML dump. After
 stale handling was added, the user reported one successful one-scroll UI-only
-search on android01; capture and semantic extraction remain unverified.
+search on android01. Later operator keyword response evidence is recorded above;
+the local parser uses its structural shape, not the raw personal data.
 Instagram UI actions emit per-step START/END/FAILED
 terminal logs, with named lookup timeouts and health checkpoints while polling.
 Stale-only interactions reacquire a fresh element at most three times. Keyword
@@ -99,7 +103,9 @@ same host/equal leaf in that invocation/thread and no trust call failed. Other
 errors/hosts/overloads and outer PoP verification remain original. Thirty-second
 internal deadline disables override independently of REPL timeout; logging caps
 at100+marker. Unload on REPL exit; no CA/APK/OS/config changes. Fail-closed guards
-and limitations are in docs/facebook-pinning-trial.md. No live acceptance yet.
+and limitations are in docs/facebook-pinning-trial.md. User subsequently supplied
+readable /api/v1/feed/timeline/ JSON in remote mitmweb: endpoint-scoped live
+decryption evidence, not semantic search/worker acceptance or universal coverage.
 The exact CDN host instagram.fcgk16-1.fna.fbcdn.net was separately approved after
 its proxy handshake failure; no wildcard/other CDN host is included. Public
 research docs/instagram-public-scripts.md corroborates the Java verifier path,
@@ -113,8 +119,39 @@ remote proxy's verified CA on android01. See AI_CONTEXT.md for provenance and ha
 Remote capture is external to the current executor; keep `--no-capture` when UI
 automation uses that remote proxy. Local proxy_host is a bind address, not a remote endpoint.
 Session directories are created mode 0700 on POSIX. Job success with capture enabled
-requires at least one matching non-transport-error response. That does not prove
-semantic search extraction; the result explicitly reports it as unverified.
+requires at least one matching non-transport-error response. That alone does not
+prove semantic search extraction. The semantic flag requires at least one
+complete, nonempty2xx TopSerpQuery response matching the exact job keyword;
+partial search responses are counted separately. It does not promise exhaustive
+results or production worker acceptance, and the ACK policy is unchanged.
+
+## Observed Instagram search parser
+
+Shared capture/decoding.py decodes bounded UTF-8 JSON-object sequences (512 docs,
+2MiB); it does not guess multipart/SSE framing. Instagram parser identifies
+exact HTTPS API host, POST /graphql/query, form TopSerpQuery and query variables
+(256KiB request). Other endpoints stay unmapped_json, never recursively mined.
+Base manual_pagination_query MEDIA_GRID items map to indexed slots (max2000).
+Only observed page-info and SerpClipsViewerFragment deferred paths are merged;
+post patch IDs must equal base slot IDs. Parent IDs deduplicate results, carousel
+children stay nested. Unsupported data/errors/truncation/limits/missing explicit
+final marker keep sequences partial/invalid; a standalone plain JSON object can
+be complete without an explicit marker. Actual remote MIME framing is pending.
+
+The selected-field projection excludes arbitrary raw request/response metadata,
+tracking, manifests and cursor values; it retains only has_next_page/has_end_cursor.
+All media URL querystrings/fragments are dropped: references, not signed download
+URLs. Captions/selected account fields remain personal data, not anonymous.
+SearchPostWriter maintains one bounded per-session snapshot keyed(keyword,parent
+ID), enriches repeated pages, and atomically replaces posts.jsonl (10k rows/32MiB).
+No multi-process writer sharing or cross-job/global deduplication is implied.
+Requests.jsonl retains normalized per-flow records/status, not raw search bodies.
+
+capture/offline.py exposes the same parser through parse instagram-search with
+operator-exported response body + minimal paired request metadata and an expected
+keyword. It refuses an existing output directory and invents no HTTP status.
+This is base-package, file-only parsing, NOT remote mitmweb integration or job ACK.
+No TLS/CA/Frida/Android/APK changes or automatic API replay/pagination are involved.
 
 ## Infrastructure
 

@@ -8,10 +8,9 @@ import os
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from sniffer.capture.writer import append_json, safe_url
+from sniffer.capture.decoding import MAX_BODY
+from sniffer.capture.writer import SearchPostWriter, append_json, safe_url
 from sniffer.runtime import atomic_json
-
-MAX_BODY = 2 * 1024 * 1024
 
 
 def matches_domain(host: str, domains: list[str]) -> bool:
@@ -52,6 +51,13 @@ class Recorder:
             return
         response = flow.response
         content_type = response.headers.get("content-type", "")
+        search_request = None
+        if self.context["platform"] == "instagram":
+            search_request = self.parser.identify_search(
+                flow.request.method, flow.request.pretty_url,
+                getattr(flow.request, "headers", {}).get("content-type", ""),
+                getattr(flow.request, "raw_content", b"") or b"",
+            )
         record = {
             "job_id": self.context.get("job_id"),
             "platform": self.context["platform"],
@@ -63,21 +69,36 @@ class Recorder:
             "status_code": response.status_code,
             "content_type": content_type,
         }
-        # No request bodies, headers, binary bodies, or unbounded response decoding by default.
+        if search_request is not None:
+            # A POST URL can still carry query metadata; never export it for search.
+            record["url"] = urlsplit(record["url"])._replace(query="", fragment="").geturl()
+        # Only allowlisted search request metadata survives; never export its raw body.
         if len(response.raw_content or b"") > MAX_BODY:
             record.update(kind="body_skipped", reason="encoded body exceeds limit")
-        elif "json" in content_type.lower():
+        elif search_request is not None or "json" in content_type.lower():
             try:
                 body = response.content
                 if len(body or b"") > MAX_BODY:
                     record.update(kind="body_skipped", reason="decoded body exceeds limit")
+                elif search_request is not None:
+                    record.update(self.parser.parse_search(
+                        body or b"", search_request, expected_keyword=self.context.get("keyword"),
+                    ))
+                    if not 200 <= response.status_code < 300:
+                        record["stream_complete"] = False
+                        record["parse_status"] = "partial" if record["posts"] else "invalid"
+                        record["issues"].append("http_error")
                 else:
                     record.update(self.parser.parse_json(json.loads(body)))
-            except (ValueError, UnicodeError):
+            except (ValueError, UnicodeError, RecursionError):
                 record.update(kind="unparsed", reason="invalid JSON")
         else:
             record.update(kind="metadata_only")
         append_json(self.output / "requests.jsonl", record)
+        if record["kind"] == "instagram_search" and record["posts"]:
+            if not hasattr(self, "post_writer"):
+                self.post_writer = SearchPostWriter(self.output)
+            self.post_writer.write(record)
 
     def error(self, flow):
         try:

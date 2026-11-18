@@ -1,5 +1,7 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
+from urllib.parse import urlencode
 
 import pytest
 
@@ -84,3 +86,85 @@ def test_recorder_failure_is_signalled(recorder, monkeypatch):
     with pytest.raises(OSError):
         recorder.response(flow())
     assert (recorder.output / "capture.failed.json").exists()
+
+
+def search_flow(*, keyword="coffee test", status=200):
+    sample = flow(
+        (Path(__file__).parent / "fixtures/top_serp_synthetic.jsonseq").read_bytes(),
+        "application/x-fb-response",
+    )
+    sample.request.method = "POST"
+    sample.request.pretty_url = "https://i.instagram.com/graphql/query"
+    sample.request.headers = {"content-type": "application/x-www-form-urlencoded"}
+    sample.request.raw_content = urlencode({
+        "fb_api_req_friendly_name": "TopSerpQuery",
+        "variables": json.dumps({"query": keyword, "is_pagination_request": True}),
+        "access_token": "PRIVATE_REQUEST",
+    }).encode()
+    sample.response.status_code = status
+    return sample
+
+
+def test_recorder_top_serp_sequence_outputs_normalized_posts(recorder):
+    recorder.context["keyword"] = "coffee test"
+    recorder.response(search_flow())
+    recorder.response(search_flow())  # repeated page, not six new posts
+    records = [
+        json.loads(line) for line in (recorder.output / "requests.jsonl").read_text().splitlines()
+    ]
+    assert all(r["stream_complete"] and r["keyword_matched"] for r in records)
+    assert len((recorder.output / "posts.jsonl").read_text().splitlines()) == 3
+    for file in recorder.output.glob("*.jsonl"):
+        assert "PRIVATE" not in file.read_text()
+
+
+def test_recorder_mismatched_keyword_does_not_export_posts(recorder):
+    recorder.context["keyword"] = "different"
+    recorder.response(search_flow())
+    record = json.loads((recorder.output / "requests.jsonl").read_text())
+    assert record["kind"] == "search_keyword_mismatch"
+    assert not (recorder.output / "posts.jsonl").exists()
+
+
+def test_search_post_url_query_metadata_is_never_exported(recorder):
+    sample = search_flow()
+    sample.request.pretty_url += "?variables=PRIVATE_SESSION"
+    recorder.response(sample)
+    record = json.loads((recorder.output / "requests.jsonl").read_text())
+    assert record["url"] == "https://i.instagram.com/graphql/query"
+    assert "PRIVATE" not in json.dumps(record)
+
+
+@pytest.mark.parametrize("mode", ["partial", "http_error", "oversized", "decoded_oversized"])
+def test_recorder_search_limits_and_partial_flags(recorder, mode):
+    sample = search_flow(status=500 if mode == "http_error" else 200)
+    if mode == "partial":
+        sample.response.raw_content = sample.response.content = (
+            sample.response.content.rsplit(b'{"extensions"', 1)[0]
+        )
+    elif mode == "oversized":
+        sample.response.raw_content = b"x" * (MAX_BODY + 1)
+    elif mode == "decoded_oversized":
+        sample.response.content = b"x" * (MAX_BODY + 1)
+    recorder.response(sample)
+    record = json.loads((recorder.output / "requests.jsonl").read_text())
+    assert not record.get("stream_complete")
+    if "oversized" in mode:
+        assert record["kind"] == "body_skipped"
+        assert not (recorder.output / "posts.jsonl").exists()
+    else:
+        assert record["parse_status"] == "partial"
+        assert all(not json.loads(line)["complete_response_observed"] for line in (
+            recorder.output / "posts.jsonl"
+        ).read_text().splitlines())
+
+
+def test_post_snapshot_write_failure_fails_capture(recorder, monkeypatch):
+    monkeypatch.setattr(
+        "sniffer.capture.recorder.SearchPostWriter.write",
+        lambda *_: (_ for _ in ()).throw(OSError("PRIVATE_DISK_ERROR")),
+    )
+    with pytest.raises(OSError):
+        recorder.response(search_flow())
+    failure = json.loads((recorder.output / "capture.failed.json").read_text())
+    assert failure == {"error_type": "OSError"}

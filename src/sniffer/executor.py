@@ -157,16 +157,31 @@ def execute(
             checkpoint()
             traffic_file = output / "requests.jsonl"
             count = 0
+            verified_search_responses = 0
+            partial_search_responses = 0
             if traffic_file.exists():
                 with traffic_file.open(encoding="utf-8") as handle:
-                    count = sum(1 for line in handle if json.loads(line)["kind"] != "transport_error")
+                    for line in handle:
+                        record = json.loads(line)
+                        count += record["kind"] != "transport_error"
+                        if record["kind"] == "instagram_search" and record.get("keyword") == job.keyword:
+                            verified = (
+                                record.get("keyword_matched") is True
+                                and record.get("stream_complete") is True
+                                and record.get("post_count", 0) > 0
+                                and 200 <= record.get("status_code", 0) < 300
+                            )
+                            verified_search_responses += verified
+                            partial_search_responses += not verified
             if capture and count == 0:
                 raise RuntimeError(
                     "No matching HTTP responses captured. Check proxy, trust, domains, and app transport."
                 )
             result.update(job_id=job.job_id, output=str(output.resolve()))
             result["captured_responses"] = count
-            result["semantic_search_results_verified"] = False
+            result["semantic_search_results_verified"] = verified_search_responses > 0
+            result["verified_search_responses"] = verified_search_responses
+            result["partial_search_responses"] = partial_search_responses
             event("completed")
             atomic_json(output / "result.json", result)
             atomic_json(completion, {"fingerprint": fingerprint, "result": result})

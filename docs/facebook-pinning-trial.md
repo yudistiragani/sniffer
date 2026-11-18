@@ -106,12 +106,13 @@ bridge/existing-hook guards, rollback after partial installation, message/type
 guards, transport failure, and logging cap. These are not live Android tests.
 The agent did not attach to or modify the user's device.
 
-The operator reported that search works and supplied two override events with
-system trust observed, but has not yet supplied a readable native HTTP response.
-A subsequent proxy log shows the above exact CDN host reaching mitmproxy but
-disconnecting during TLS. That generic message alone does not establish its
-specific rejection mechanism; the unchanged guards must still hold for an override.
-Do not infer that an API response was captured from a CDN error or successful UI.
+The operator reported search works and supplied two override events with
+system trust observed, then readable native timeline JSON and a paired keyword
+`TopSerpQuery` request/response in remote mitmweb. That establishes endpoint-scoped
+capture, not full CDN coverage, repeated-run stability or worker acceptance.
+Earlier CDN handshake failures alone did not establish their specific rejection
+mechanism; unchanged guards still apply. See
+[search parsing](instagram-search-parsing.md) for the response/recorder boundary.
 
 Read-only public-source research is recorded in
 [Instagram public-script research](instagram-public-scripts.md). No third-party

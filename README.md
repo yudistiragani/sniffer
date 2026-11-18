@@ -4,11 +4,11 @@ Base executor **Instagram keyword search** untuk Android/Redroid, dengan Appium,
 capture mitmproxy, Frida opsional, dan worker Beanstalk. TikTok baru extension point.
 Tidak ada API atau database server. Semua operasi device nyata dijalankan di server Linux.
 
-**Baseline UI sudah berhasil:** Appium saja, `--no-capture`, Frida tidak
-diaktifkan, proxy Android dinonaktifkan operator. Target berikutnya tetap HTTPS
-Instagram terbaca di proxy remote. Operator sudah menyiapkan Frida17.27.0 dan
-menguji attach native ringan; gunakan `frida inspect` untuk metadata realm sebelum
-hook TLS. **Belum ada bypass sertifikat yang dikirim/diaktifkan.**
+**Baseline UI dan capture search sudah dibuktikan operator:** respons native
+`TopSerpQuery` dengan keyword yang cocok terbaca di proxy remote melalui trial
+TLS terarah yang disetujui, bukan bypass default. Parser lokal kini mendukung
+struktur tersebut dan patch bertahapnya; integrasi recorder remote/worker dan
+stabilitas berulang belum diterima. Trial tetap terpisah, opt-in dan 30 detik.
 Integrasi tetap opt-in; tidak otomatis menghapus binary, menghentikan service,
 atau mengubah CA existing.
 Tim melaporkan Instagram 379 bermasalah pada search dan 416 bekerja tanpa proxy;
@@ -81,9 +81,15 @@ versi Instagram pengguna. Sesuaikan `platforms.instagram.selectors` lewat Appium
 Inspector. Flow mengetik keyword, menekan Enter, menunggu elemen hasil, lalu scroll;
 tidak memaksa kategori akun/hashtag/post tertentu.
 
-**Parser saat ini menyimpan `unmapped_json`**, bukan mengklaim hasil search sudah
-dinormalisasi. Ekstraksi semantik menunggu sampel response nyata. Capture kosong
-membuat job gagal, bukan sukses palsu. Traffic background tetap dapat tertangkap.
+**Parser `TopSerpQuery`** mencocokkan keyword request, menggabungkan patch bertahap,
+dan menulis `posts.jsonl` tanpa duplikasi parent post per keyword. Endpoint lain
+tetap `unmapped_json`. Capture kosong membuat job gagal. Flag verifikasi semantik
+hanya true untuk respons search lengkap, HTTP 2xx, keyword cocok, dan post nonempty;
+traffic background atau respons parsial tidak cukup.
+
+Untuk body yang diekspor dari proxy remote, tersedia parsing offline tanpa
+Appium/Frida/network. Lihat [format input, command, dan batas parser](docs/instagram-search-parsing.md).
+Ini belum menghubungkan mitmweb remote ke worker.
 
 ### Capture saja / proxy independen
 
@@ -157,6 +163,7 @@ tidak menjalankan `compose up`, membuat stack, atau menghapus data.
 ## Output dan keamanan
 
 Output per sesi: `session.json`, `events.jsonl`, `requests.jsonl` jika ada traffic,
+`posts.jsonl` jika search dikenali,
 `proxy.log`, optional `frida.jsonl`, `result.json` atau `failure.json`.
 Standalone capture juga memiliki readiness/stop marker; raw capture hanya opt-in.
 
@@ -176,6 +183,7 @@ yang mengklik STF, aplikasi eksternal, atau worker di host lain.
 - [Operasi dan lifecycle](docs/operations.md)
 - [Redroid dengan Magisk](docs/redroid-magisk.md)
 - [Diagnostik TLS dengan Frida (tanpa bypass)](docs/frida-diagnostics.md)
+- [Parsing hasil search GraphQL / offline export](docs/instagram-search-parsing.md)
 - [Konteks dan aturan agent](.ai/AI_CONTEXT.md)
 - [Arsitektur](.ai/ARCHITECTURE.md)
 - [Task lanjutan](.ai/TASKS.md)

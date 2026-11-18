@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -195,3 +196,34 @@ def test_attach_only_never_activates_or_spawns_app(settings, monkeypatch, foregr
     assert instrumentation.call_args.kwargs["allow_spawn"] is False
     driver.activate_app.assert_not_called()
     driver.quit.assert_called_once()
+
+
+@pytest.mark.parametrize("mode,verified", [
+    ("complete", True), ("partial", False), ("mismatch", False),
+    ("empty", False), ("http_error", False), ("unmapped", False),
+])
+def test_executor_semantic_acceptance_is_keyword_and_completion_scoped(
+    settings, monkeypatch, mode, verified,
+):
+    driver = MagicMock()
+    monkeypatch.setattr(executor, "ADB", lambda *_: MagicMock())
+    monkeypatch.setattr("sniffer.integrations.appium.connect", lambda *_: driver)
+    def proxy(_settings, _device, output):
+        record = {
+            "kind": "instagram_search" if mode != "unmapped" else "unmapped_json",
+            "keyword": "coffee" if mode != "mismatch" else "tea",
+            "keyword_matched": mode != "mismatch",
+            "stream_complete": mode != "partial",
+            "post_count": 0 if mode == "empty" else 3,
+            "status_code": 500 if mode == "http_error" else 200,
+        }
+        (output / "requests.jsonl").write_text(json.dumps(record) + "\n")
+        return MagicMock()
+    monkeypatch.setattr("sniffer.integrations.mitmproxy.ProxyCapture", proxy)
+    monkeypatch.setattr("sniffer.platforms.instagram.executor.search", lambda *_: {"scrolls": 0})
+    monkeypatch.setattr(executor.time, "sleep", lambda _: None)
+    result = executor.execute(
+        settings, "android01", "instagram", SearchJob(job_id=f"parse-{mode}", keyword="coffee"),
+    )
+    assert result["semantic_search_results_verified"] is verified
+    assert result["verified_search_responses"] == int(verified)

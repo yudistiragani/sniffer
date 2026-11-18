@@ -60,20 +60,32 @@
   Observer unchanged, no implicit worker activation or CA/APK/OS changes.
 - [x] User trial: ready10:39:22Z, two override events10:39:29Z with original system
   trust observed; user reports search works. Other-host rejections remain preserved.
-- [ ] Inspect remote mitmweb (clear display filter) at10:39:29Z accounting for timezone:
-  readable HTTP hostname/status/time vs same-period TLS errors vs no visible flows.
-  Frida does not configure proxy/routing or export HTTP, and UI may use cache.
-  Do not broaden hosts blindly. Native HTTP/remote-recorder acceptance pending.
+- [x] User supplied readable native timeline response in remote mitmweb:
+  i.instagram.com/api/v1/feed/timeline/, body status="ok", populated feed_items.
+  HTTPS decryption confirmed for this endpoint; HTTP status code not supplied.
+  This is home feed, not keyword-search extraction or remote-recorder integration.
 - [x] User supplied TLS failure for instagram.fcgk16-1.fna.fbcdn.net and approved
   adding exactly this host (no wildcard). Trial now3 approved hosts; guards unchanged.
 - [x] Requested public-source research: Beeper describes same verifier/Tigon path;
   reviewed KnifeLemon/Aniketh01/depreciating source. Broader trust-all/startup hooks
   not adopted; not verified compatible with IG416/Android9/Houdini. Sources in
   docs/instagram-public-scripts.md. No third-party code copied or executed.
-- [ ] Operator one bounded trial after deploying exact-CDN update; report readable
-  API/CDN HTTP host/status/time in mitmweb. Other CDN scope not implicitly approved.
-- Native HTTPS capture is active priority; Beanstalk acceptance and image/OS
-  migrations remain deferred. No APK switch or universal hook by guesswork.
+- [x] Operator paired search sample: POST /graphql/query, TopSerpQuery,
+  variables.query="kopi toraja", pagination=true. MEDIA_GRID posts + deferred
+  caption/count/user fragments confirm keyword-search capture for that run.
+  Supplied flags all is_final=false; completion/HTTP code/framing not established.
+- [x] Implement bounded JSON-sequence decoder, exact request/keyword matching,
+  deferred path+ID merge, parent deduplication, normalized posts.jsonl snapshot.
+  Privacy allowlist/no signed URL queries; synthetic fixtures only. Trial unchanged.
+- [x] Offline base-package parse instagram-search command, no network/device/
+  proxy dependency; new-output-only, explicit complete/partial/invalid summary.
+- [ ] Operator export decoded body + minimal paired metadata; validate offline
+  summary/posts and inspect actual Content-Type/framing/final marker. No raw
+  cookie/session/cursor/tracking/contact values in fixtures or shared logs.
+- [ ] Remote recorder deployment/output transport and job correlation.
+- Search HTTPS milestone is met; live parser output and remote integration are
+  next. Other CDN scope remains unapproved; no repeated setup or blanket hooks.
+  Beanstalk acceptance and image/OS migrations remain deferred.
 
 ## Initial delivery
 
@@ -83,7 +95,8 @@
 - [x] Existing STF status/start without recreate.
 - [x] Appium, proxy, Frida adapters; independent commands where applicable.
 - [x] Instagram keyword-search flow + bounded scroll (one user-reported live UI-only smoke passed).
-- [x] mitmproxy recorder + platform parser boundary (`unmapped_json`, not semantic extraction).
+- [x] mitmproxy recorder + platform parser boundary; observed IG TopSerp parser
+  added later, unknown endpoints remain unmapped_json.
 - [x] Beanstalk worker with bounded retry and long-job touch.
 - [x] TikTok extension point, explicitly unsupported search.
 - [x] Opt-in ADB reverse/global proxy setup; no CA/root installation.
@@ -95,7 +108,8 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **165 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
+Latest full run: **240 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Offline imports load no mitmproxy/Appium/Frida; new parser modules verified in wheel. Base-only
 installation was also exercised; the optional real-proxy test skips without capture extra.
 Observer JS is exercised under a Node-based simulated GumJS harness (Node optional
 for development, not a runtime requirement). This is not live native-hook validation.
@@ -125,12 +139,12 @@ on android01 after the stale fix. Local tests do not prove live capture acceptan
 - [x] Operator added verified remote CA to android01 System store as c8750f0d.1,
   preserving .0, with explicit consent. No automated install command was added.
 - [x] Browser HTTPS works after CA addition, according to user.
-- Instagram previously failed TLS and search spun after browser HTTPS worked;
-  browser trust does not prove app trust. Retest current working build before
-  attributing all symptoms to pinning; no mechanism has been confirmed.
+- [x] After targeted trial, user supplied readable native timeline JSON in remote
+  mitmweb. This supersedes the earlier native-TLS blocker for that endpoint only.
 - After readable native traffic, integrate recorder/output on remote mitmweb
   (CLI capture is local only).
-- Get real search-response samples; implement semantic extraction with fixtures.
+- [x] Real search-response structure supplied; implement parser with synthetic
+  structural fixtures, not copied account data. Live output acceptance pending.
 - Confirm producer's actual job contract, tube, TTR, retry policy, expected output.
 - Decide specific search-result category if default results are insufficient.
 
