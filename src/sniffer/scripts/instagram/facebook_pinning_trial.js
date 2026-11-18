@@ -3,7 +3,10 @@
 "use strict";
 
 (() => {
-    const allowedHosts = new Set(["i.instagram.com", "i-fallback.instagram.com"]);
+    const allowedHosts = new Set([
+        "i.instagram.com", "i-fallback.instagram.com",
+        "instagram.fcgk16-1.fna.fbcdn.net"
+    ]);
     const durationMs = 30000;
     const maxEvents = 100;
     const contexts = new Map();

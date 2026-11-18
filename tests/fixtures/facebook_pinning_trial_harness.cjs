@@ -26,6 +26,9 @@ const certificate = {
 const certs = [certificate];
 const host = scenario === "other_host" ? "other.invalid" :
     scenario === "suffix_host" ? "i.instagram.com.other.invalid" :
+    scenario === "cdn" ? "instagram.fcgk16-1.fna.fbcdn.net" :
+    scenario === "cdn_suffix" ? "instagram.fcgk16-1.fna.fbcdn.net.other.invalid" :
+    scenario === "other_cdn" ? "instagram.fcgk17-1.fna.fbcdn.net" :
     scenario === "fallback" ? "i-fallback.instagram.com" : "i.instagram.com";
 const originalError = {
     $h: {}, type: scenario === "wrong_type" ? "Other" :
@@ -165,7 +168,7 @@ if (["abi", "version", "signature", "existing_hook", "partial_install", "bridge_
     if (scenario !== "transport") assert(events.some(e => e.event === "fb_trial.ready"));
     if (scenario === "expired") now += 31000;
     trustFailure = ["trust_reject", "swallowed_trust_reject"].includes(scenario);
-    const allowed = ["override", "fallback", "peer_exception", "stale", "transport", "limit"]
+    const allowed = ["override", "fallback", "cdn", "peer_exception", "stale", "transport", "limit"]
         .includes(scenario);
     if (allowed || scenario === "original_success")
         assert.equal(verifyImpl.call(receiver, certs, host, true), undefined);

@@ -378,3 +378,42 @@ mention pinning; only the two exact standard exception classes are eligible.
 Local validation:162 tests passed, Ruff/diff clean, wheel/sdist build succeeded;
 wheel contains the trial JS. All trial behavior tests are Node simulations, not
 live Instagram interception. No device commands or deployment performed by agent.
+
+Operator trial at10:39:22Z ready: two fb_trial.override events at10:39:29.325Z/
+.374Z with systemTrustObserved true. User reports search now works but questions
+whether traffic entered mitmproxy. Remaining supplied events have hostAllowed
+false/systemTrustObserved false: out-of-scope host rejections preserved, NOT
+evidence of failed system trust for the two allowed hosts. Do not widen host scope
+blindly. Trial only overrides eligible pinning failures; it does not route traffic,
+configure proxy or export HTTP flows. Search UI can use cached data; no readable
+HTTP response sample yet. NEXT inspect existing remote mitmweb with display filter
+cleared around10:39:29Z (account for timezone); report hostname/status/time or
+same-period TLS errors. Distinguish empty display, handshake errors and readable
+HTTP response before another instrumentation change. No repeat trial needed just
+to interpret these events; capture/remote-recorder acceptance remains pending.
+
+User supplied proxy TLS handshake disconnect for
+instagram.fcgk16-1.fna.fbcdn.net. This shows that CDN connection reached the proxy,
+but not readable HTTP; does not establish API capture or exact CDN verifier cause.
+Operator approved "Tambahkan satu host CDN ini" and requested public JS research.
+Added ONLY that exact hostname to trial allowlist (now3), unchanged guards/30s.
+No *.fbcdn.net or other regional CDN hosts; API-flow acceptance still pending.
+
+Read-only research found Beeper2025-11-24 article documenting the same
+CertificateVerifier.verify/Tigon stack and readable mitmproxy after a broad no-op
+hook plus Eltion patches. Eltion repo currently GitHub-disabled (not reviewed).
+Reviewed KnifeLemon/Android-SSL-Pinning-Bypass e423bc691eba0dfebc686930f27387b9c58fcd2a
+(v442/444/449/455, Android12 x86_64 claim), Aniketh01/
+Instagram-android-ssl-pinning-bypass4162de84022e8276e32a9e2cf912ad8d44911126
+(v433 Android15 arm64; source mentions422), depreciating/
+Instagram-SSL-Pinning-Bypass f5cf91943d90040861d8defff10cbc8ee5d7c999 (v435).
+Public scripts use broader verifier/PoP no-ops and/or Tigon startup configuration
+plus trust-all Conscrypt/SSLContext. Not proven on our IG416/Houdini/Android9.
+Our observed runtime path takes precedence over their version heuristics.
+No third-party code copied/installed/executed, no image/APK/OS changes or implicit
+new hooks. Sources/commit-pinned review in docs/instagram-public-scripts.md.
+NEXT one operator trial with exact approved CDN + inspect readable API/CDN
+HTTP host/status/time in remote mitmweb, not just more Frida events.
+Local validation after exact-CDN update:165 tests passed, Ruff/diff clean,
+wheel/sdist build succeeded. New simulations allow approved CDN and reject its
+suffix-spoof and a different regional CDN. Live expanded scope remains untested.

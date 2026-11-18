@@ -94,12 +94,16 @@ After explicit operator approval, `instagram/facebook_pinning_trial.js` is a
 SEPARATE opt-in native REPL test, not an observer/default/worker feature. Exact
 IG416/versionCode382206160/ia32 and method signatures are required. It calls
 original Facebook verify(cert[],host,bool) first, and overrides only recognized
-typed pin exceptions for two fixed IG hosts when original Conscrypt accepted the
+typed pin exceptions for three fixed IG/CDN hosts when original Conscrypt accepted the
 same host/equal leaf in that invocation/thread and no trust call failed. Other
 errors/hosts/overloads and outer PoP verification remain original. Thirty-second
 internal deadline disables override independently of REPL timeout; logging caps
 at100+marker. Unload on REPL exit; no CA/APK/OS/config changes. Fail-closed guards
 and limitations are in docs/facebook-pinning-trial.md. No live acceptance yet.
+The exact CDN host instagram.fcgk16-1.fna.fbcdn.net was separately approved after
+its proxy handshake failure; no wildcard/other CDN host is included. Public
+research docs/instagram-public-scripts.md corroborates the Java verifier path,
+not build compatibility; third-party scripts are not dependencies or auto-loaded.
 
 Recorder exports are redacted best-effort and bounded to 2 MiB encoded/decoded JSON;
 other bodies are metadata-only. Raw `.mitm` is opt-in and unredacted. Proxy CA/config

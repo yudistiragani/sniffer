@@ -58,10 +58,20 @@
   exact build/ABI/signature/host guards, same-invocation/thread original system
   trust acceptance for same leaf, typed recognized pin exception only,30s expiry.
   Observer unchanged, no implicit worker activation or CA/APK/OS changes.
-- [ ] Operator: deploy then one bounded native REPL trial; manually search after
-  fb_trial.ready. Share override/preserved/refused events + UI outcome and
-  readable HTTP host/status/time in mitmweb. No concurrent hooks/jobs; stop on crash.
-  Native HTTP response/search acceptance remains pending.
+- [x] User trial: ready10:39:22Z, two override events10:39:29Z with original system
+  trust observed; user reports search works. Other-host rejections remain preserved.
+- [ ] Inspect remote mitmweb (clear display filter) at10:39:29Z accounting for timezone:
+  readable HTTP hostname/status/time vs same-period TLS errors vs no visible flows.
+  Frida does not configure proxy/routing or export HTTP, and UI may use cache.
+  Do not broaden hosts blindly. Native HTTP/remote-recorder acceptance pending.
+- [x] User supplied TLS failure for instagram.fcgk16-1.fna.fbcdn.net and approved
+  adding exactly this host (no wildcard). Trial now3 approved hosts; guards unchanged.
+- [x] Requested public-source research: Beeper describes same verifier/Tigon path;
+  reviewed KnifeLemon/Aniketh01/depreciating source. Broader trust-all/startup hooks
+  not adopted; not verified compatible with IG416/Android9/Houdini. Sources in
+  docs/instagram-public-scripts.md. No third-party code copied or executed.
+- [ ] Operator one bounded trial after deploying exact-CDN update; report readable
+  API/CDN HTTP host/status/time in mitmweb. Other CDN scope not implicitly approved.
 - Native HTTPS capture is active priority; Beanstalk acceptance and image/OS
   migrations remain deferred. No APK switch or universal hook by guesswork.
 
@@ -85,7 +95,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **162 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
+Latest full run: **165 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
 installation was also exercised; the optional real-proxy test skips without capture extra.
 Observer JS is exercised under a Node-based simulated GumJS harness (Node optional
 for development, not a runtime requirement). This is not live native-hook validation.

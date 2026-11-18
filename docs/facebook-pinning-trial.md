@@ -22,8 +22,10 @@ agent's Java bridge:
 The original Facebook method always executes first. Its normal return is
 preserved. An exception may become a void return ONLY when:
 
-- The original hostname is exactly `i.instagram.com` or `i-fallback.instagram.com`
-  (no suffix/wildcard matching).
+- The original hostname is exactly `i.instagram.com`, `i-fallback.instagram.com`
+  or `instagram.fcgk16-1.fna.fbcdn.net` (no suffix/wildcard matching). The last
+  hostname was added only after the operator reported its TLS failure and
+  explicitly approved that exact extension. No other CDN host is covered.
 - During that same synchronous invocation, on the same native thread, the original
   Conscrypt method returns a nonempty trusted chain for the same hostname and
   equal leaf certificate. The system method's arguments/results are not changed.
@@ -86,7 +88,7 @@ never eternalize it. There is no config/worker integration or automatic activati
 
 Events are capped at100 plus a limit marker and contain only static reasons,
 call IDs and guard booleans; no dynamic host, cert, message, header, token, key,
-body or raw exception. The fixed two-host scope is shown at startup. Reaching the
+body or raw exception. The fixed three-host scope is shown at startup. Reaching the
 logging cap does not extend the30second override window.
 
 Share `fb_trial.ready/override/preserved_rejection/refused` events, whether search
@@ -103,6 +105,17 @@ errors), expiry before/during calls, no stale trust reuse, signature/version/ABI
 bridge/existing-hook guards, rollback after partial installation, message/type
 guards, transport failure, and logging cap. These are not live Android tests.
 The agent did not attach to or modify the user's device.
+
+The operator reported that search works and supplied two override events with
+system trust observed, but has not yet supplied a readable native HTTP response.
+A subsequent proxy log shows the above exact CDN host reaching mitmproxy but
+disconnecting during TLS. That generic message alone does not establish its
+specific rejection mechanism; the unchanged guards must still hold for an override.
+Do not infer that an API response was captured from a CDN error or successful UI.
+
+Read-only public-source research is recorded in
+[Instagram public-script research](instagram-public-scripts.md). No third-party
+script has been copied, installed, run, or implicitly enabled.
 
 Java bridge exception handling uses Frida's Java-Throwable `$h` wrapper, checked
 against upstream source:
