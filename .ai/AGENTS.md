@@ -9,6 +9,10 @@
 - One active automation/worker per device. Respect device and service locks.
 - No automatic CA installation, TLS trust changes, login, or arbitrary job-supplied scripts.
 - Instrument only devices/apps the operator is authorized to test.
+- Treat Frida server/scripts as unavailable until explicitly verified/provisioned;
+  no Magisk dependency. UI-only baseline has passed; native capture is the goal.
+  Do not run unrequested injection, stop/delete external Frida services, or change
+  installed Instagram versions. Inspect actual device/process/APK ABIs separately.
 - Never commit credentials, CA private keys, accounts, raw traffic, runtime state, APKs.
 - Redact credential fields in exports; response content still contains potentially
   personal data and requires restricted storage.

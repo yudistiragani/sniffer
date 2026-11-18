@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 import uuid
 from collections.abc import Callable
@@ -17,9 +18,15 @@ from sniffer.jobs import JobConflict, SearchJob
 from sniffer.runtime import atomic_json, lock
 from sniffer.settings import Settings
 
+logger = logging.getLogger(__name__)
 
-def job_fingerprint(job: SearchJob, *, capture: bool, frida: bool) -> str:
+
+def job_fingerprint(
+    job: SearchJob, *, capture: bool, frida: bool, frida_options: dict | None = None,
+) -> str:
     payload = {**job.model_dump(), "capture": capture, "frida": frida}
+    if frida_options is not None:
+        payload["frida_options"] = frida_options
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
@@ -61,7 +68,13 @@ def execute(
             "adb_serial": device.adb_serial, "job": job.model_dump(),
             "capture": capture, "frida": frida,
         }
-    fingerprint = job_fingerprint(job, capture=capture, frida=frida)
+    fingerprint = job_fingerprint(
+        job, capture=capture, frida=frida,
+        frida_options={
+            "endpoint": device.frida_endpoint, "device_id": device.frida_device_id,
+            "scripts": settings.platforms[platform].frida_scripts,
+        } if frida else None,
+    )
     completion = settings.state_dir / "completed" / platform / f"{job.job_id}.json"
     with lock(settings, f"job-{platform}-{job.job_id}"), (
         lease if lease is not None else lock(settings, f"device-{device_name}")
@@ -79,7 +92,9 @@ def execute(
         output = new_session(
             settings, platform, device_name, job_id=job.job_id,
             keyword=job.keyword, capture=capture, frida=frida,
+            frida_scripts=settings.platforms[platform].frida_scripts if frida else [],
         )
+        logger.info("Session output=%s", output.resolve())
         def event(phase):
             append_json(output / "events.jsonl", {
                 "job_id": job.job_id, "phase": phase, "at": datetime.now(UTC).isoformat(),
@@ -95,9 +110,13 @@ def execute(
                     event("capture_ready")
                 from sniffer.integrations.appium import session
                 driver = stack.enter_context(session(device, settings.platforms[platform]))
+                instrumentation = None
                 if frida:
                     from sniffer.integrations.frida import Instrumentation
-                    stack.enter_context(Instrumentation(device, settings.platforms[platform], output))
+                    instrumentation = stack.enter_context(
+                        Instrumentation(device, settings.platforms[platform], output)
+                    )
+                    instrumentation.check()
                 driver.activate_app(settings.platforms[platform].package)
                 event("application_activated")
 
@@ -105,6 +124,8 @@ def execute(
                     checkpoint()
                     if proxy:
                         proxy.require_alive()
+                    if instrumentation:
+                        instrumentation.check()
 
                 from sniffer.platforms.instagram.executor import search
                 event("search_started")

@@ -31,6 +31,17 @@ def test_completed_job_replayed_without_device_connection(settings, monkeypatch)
         executor.execute(settings, "android01", "instagram", job.model_copy(update={"keyword": "tea"}))
 
 
+def test_job_fingerprint_changes_with_frida_script_selection():
+    job = SearchJob(job_id="frida-options", keyword="coffee")
+    first = executor.job_fingerprint(
+        job, capture=False, frida=True, frida_options={"scripts": ["shared/observe.js"]}
+    )
+    second = executor.job_fingerprint(
+        job, capture=False, frida=True, frida_options={"scripts": ["shared/tls_observer.js"]}
+    )
+    assert first != second
+
+
 def raw_job(body=None):
     return SimpleNamespace(id=42, body=body or '{"job_id":"j1","keyword":"coffee"}')
 

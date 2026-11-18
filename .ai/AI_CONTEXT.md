@@ -12,6 +12,43 @@ file output, and a thin Beanstalk worker. TikTok is a future extension point, no
 implemented search. No API, dashboard, Redis, SQL server, AI, or distributed scheduler.
 Per-platform extraction parsers; shared recording/decoding/writing.
 
+### Frida assumptions and validated UI baseline
+
+Initially the user asked to treat Frida server/scripts as unavailable; do not
+depend on old scripts or Magisk. The operator has since explicitly prepared a
+new server and verified one native metadata attach, as recorded below. This does
+not make a TLS bypass available or authorize implicit injection on ordinary jobs.
+The Appium keyword-search/scroll baseline without capture/proxy has passed.
+That baseline is not the end goal; native capture remains the current priority.
+The optional Frida adapter remains
+scaffolding; this is not permission to delete/stop existing external services.
+The code already defaults `frida=False`; no loader or server is started in this mode.
+Installing a Python extra is not the same as enabling instrumentation.
+
+Team report, not independently verified: Instagram version 379 search was described
+as deprecated; version 416 search works with the proxy OFF. An intermediate
+380-ish version was suggested, but exact builds/APKs are not established. Do not
+upgrade/downgrade the user's app or obtain APKs automatically. Record actual
+installed version/ABI before making version-dependent automation changes.
+Team says Appium flow remains usable, scroll size could be smoother, and Frida
+injection on a Magisk-customized Redroid crashes/is unstable. Do not equate the
+successful UI smoke with functional search API responses on the older version.
+Version-related search failure and app TLS failure through proxy are distinct.
+Do not introduce bypass work or injection without a separate request.
+
+### Current priority: remote Instagram capture
+
+After the no-proxy/no-Frida UI baseline succeeded (job
+`manual-d588162819534900b1d75222d0833932`), user explicitly corrected the proposed
+move to Beanstalk: first make Instagram requests readable in remote mitmproxy.
+Worker acceptance is deferred, not the capture goal. Test the currently functional
+Instagram version with proxy re-enabled and the verified System CA, still without
+Frida. Keep `--no-capture --no-frida`: this disables local mitmdump/injection,
+NOT Android's externally configured proxy. Verify method/path/status/response in
+remote mitmweb; a TLS/domain log or local captured_responses=0 is not acceptance.
+If native TLS still fails, focus app-specific trust/pinning diagnostics; do not
+repeat CA installation, arbitrary upgrades, or assume Frida already exists.
+
 The repository also supports a limited infrastructure interface: register existing
 devices, inspect/start existing STF, and create/start/stop/destroy NEW managed
 Redroid devices with an explicitly selected local image. Do not build a full device
@@ -97,3 +134,107 @@ avoid treating reusable TIME_WAIT as an active listener. The actual port owner i
 not known from user logs: this may still be an active session/ADB forward.
 Session cleanup is logged and preserves primary UI failures if quit also fails.
 No automatic process kill, forward removal, or device reset is performed.
+
+## User-reported UI success
+
+On 2026-11-18, user reran UI-only Instagram keyword search on android01 after the
+stale/lifecycle patch and reported success: `action=search`, `scrolls=1`,
+job `manual-aac0b06464784944a7fb7b1ad7e3755f`, output session
+`20261118T072326Z_instagram_android01_2cdc4c59`.
+`captured_responses=0` is expected because this test used `--no-capture`.
+`semantic_search_results_verified=false` is expected because semantic extraction
+is not implemented. This validates a single user-operated UI smoke, not HTTPS
+capture, Frida, Beanstalk execution, all search categories, or multi-run stability.
+Next: inspect current proxy/reverse configuration read-only, then prepare capture
+with the correct CA before enabling it. Do not blindly overwrite the existing proxy.
+
+## Remote proxy and operator-performed CA setup
+
+The actual proxy is REMOTE at `103.191.17.34:18919`, not the Redroid host.
+The user set Android's global proxy explicitly with `provision --proxy`, without
+ADB reverse. Continue UI automation with `--no-capture`: the current CLI capture
+command starts a LOCAL mitmdump; it does not collect traffic from the remote service.
+Remote recorder integration/output transport is still not implemented.
+
+Proxy server: root-operated mitmweb 11.0.2, supervised as
+`mitm:mitmproxy_android_00`. Process PID 2231928 was observed at diagnosis time
+(not a permanent identifier). confdir `~/.mitmproxy` resolves to `/root/.mitmproxy`.
+HTTP neverssl works. example.com had a domain-specific name-resolution failure,
+not a global DNS outage: i.instagram.com resolves. Curl through the proxy with
+its CA verified TLS and received an origin HTTP404 for `https://i.instagram.com/`.
+HTTP404 at the root is not a TLS failure. These are user-provided results.
+
+The user showed a preexisting system CA with serial starting 655F3A56, different
+from the current proxy CA. Current verified public CA:
+- Serial: `26589AE0A3732411F6D5F0EBCE7C25AE142D8F8D`
+- SHA256: `6C:61:F9:92:48:4E:DF:C3:05:7A:D4:37:90:C0:61:40:02:81:03:47:06:1D:A7:C8:2B:F6:EC:30:05:37:D8:36`
+- OpenSSL subject_hash_old: `c8750f0d`
+
+User explicitly approved additive System CA installation on android01 via the
+consent card. ADB shell is uid0, root overlay filesystem is rw. The operator then
+ran a manual fingerprint-verified staging/hardlink procedure and confirmed the
+current CA at `/system/etc/security/cacerts/c8750f0d.1`; preexisting `.0` preserved.
+The first attempt's `ln -T` was unsupported by this Android9 toybox; corrected
+plain `ln` with nonexistence checks succeeded. Do not repeat `ln -T` instructions.
+No automatic CA installation was added to the project. The agent did not connect
+to or change the server directly. No device reboot or account reset was performed.
+
+Next: reopen the emulator browser (without clearing data) and test the resolvable
+`https://i.instagram.com/`, verifying method/path/status in remote mitmweb. Origin
+404 is acceptable for transport testing. Then test the Instagram app separately;
+pinning is possible but not established. Adding the CA file is not proof that
+already-running applications reloaded trust, or that all app HTTPS is decrypted.
+
+User subsequently reported HTTPS access in the emulator browser succeeds after
+the CA addition. This is browser-only acceptance, not Instagram-app decryption.
+The subsequent native-app test still failed TLS and search kept spinning despite
+browser HTTPS success. A controlled retest of the working app build with proxy
+re-enabled also failed TLS at i-fallback.instagram.com. The user asked whether
+missing Frida hooks explains the failure; app-specific TLS validation/pinning is
+suspected, not proven by disconnect messages alone.
+
+Latest package metadata from user:
+- Instagram `416.0.0.47.66`, versionCode `382206160`.
+- `minSdk=26`, `targetSdk=36`.
+- APK `primaryCpuAbi=armeabi-v7a`, `secondaryCpuAbi=null`.
+- Android primary ABI `x86_64` (existing Android9 Houdini environment).
+
+This suggests a 32-bit ARM APK running through native translation on x86_64.
+It is relevant to Frida/native-hook compatibility, but not proof of the reported
+injection crash cause. A standalone frida-server normally follows device OS ABI
+(x86_64), not the APK's armeabi-v7a ABI. Determine actual target-process architecture
+and native bridge behavior during a minimal diagnostic attach before native hooks.
+Do not silently replace the APK, select ARM server from APK ABI, assume old scripts
+exist, or run a blanket TLS hook. Next obtain client version and prepare a matching
+server; then test minimal instrumentation stability before any app-specific hook.
+
+User has since prepared verified official Frida17.27.0 Android-x86_64 server at
+`/data/local/tmp/sniffer-frida.1ortVs/frida-server` (runtime path, not permanent).
+It runs explicitly on Android loopback27052, forwarded with ADB --no-rebind to
+host27052. User confirmed enumeration (73 processes) and a minimal IG attach probe:
+pid27109 at that moment, Process.arch=ia32, pointerSize4, libhoudini/libart/libssl/
+libcrypto/libjavacrypto present. Probe stayed attached5s. This does not validate
+native TLS hooks, Java bridge, bypass, or long-running injection stability.
+
+The next diagnostic is metadata-only `sniffer frida inspect --realm emulated`:
+Frida officially supports a separate emulated realm for some NativeBridge/Houdini
+processes, which may reveal ARM libraries absent from the native ia32 module view.
+See https://frida.re/news/2021/02/10/frida-14-2-released/ . Compatibility here is
+NOT established. Inspect loads only runtime_probe.js, never a TLS hook, never
+spawns/activates an app, and stops on unsupported/crashed attach without retries.
+No proxy/certificate changes are part of inspect. User must keep the explicit
+server/forward running and open IG manually before testing.
+
+Also prepared (not yet live tested): opt-in shared/tls_observer.js for bounded
+native TLS metadata. No bypass, no request bodies/tokens; only same-machine ELF
+modules and in-module exports are intercepted. Use after verifying the realm and
+module view, not a blanket hook. Java instrumentation requires a bridge in the
+native realm; plain Frida17 scripts do not automatically include it. The one-run
+Instagram endpoint/script CLI overrides avoid changing YAML or registry. Native
+TLS capture is still blocked until proven otherwise; agent has not operated server.
+
+Local validation after diagnostic additions: 108 tests pass, Ruff and git diff
+checks clean, wheel/sdist build succeeds. Node executes the actual TLS observer in
+simulated GumJS to test machine guards, non-mutating callbacks, cleanup, and event
+limits. These are not real Android TLS/interception tests. Runtime inspector,
+emulated realm, and TLS observer still require user-operated server testing.

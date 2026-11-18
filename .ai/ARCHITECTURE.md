@@ -17,12 +17,20 @@ commands or `exec()` of source files. Third-party integrations are lazy imports.
 
 ## Execution
 
+Validated baseline: Appium only with proxy off, `--no-capture`, Frida disabled.
+Current goal: native Instagram traffic readable in remote mitmproxy. Proxy-on
+testing still fails native-app TLS. No Frida server/script is presumed available;
+bootstrap/version and minimal-attach stability must precede app-specific hooks.
+Optional integrations are never activated, or external services stopped, implicitly.
+
 One worker owns one device lock. Each job creates a separate session directory.
 Capture starts before app interaction. Appium uses no-reset/auto-launch-disabled
 capabilities; Frida may attach/spawn before automation activates the app. The
 configured selectors are initial candidates, not verified against the user's app.
-The search-input ID was subsequently observed in a user-provided XML dump (not
-proof the whole flow works). Instagram UI actions emit per-step START/END/FAILED
+The search-input ID was subsequently observed in a user-provided XML dump. After
+stale handling was added, the user reported one successful one-scroll UI-only
+search on android01; capture and semantic extraction remain unverified.
+Instagram UI actions emit per-step START/END/FAILED
 terminal logs, with named lookup timeouts and health checkpoints while polling.
 Stale-only interactions reacquire a fresh element at most three times. Keyword
 entry retries are clear/type/readback transactions to prevent duplicate partial
@@ -36,9 +44,32 @@ mitmproxy addon runs in the mitmdump process; it imports parser/writer from this
 installed package. There is no pretend attachment to an arbitrary running proxy.
 Frida events are separate from HTTP response records.
 
+`shared/tls_observer.js` is an opt-in native TLS diagnostic, not a bypass. It emits
+bounded metadata for selected native SSL/crypto APIs, never changes args/results,
+and skips modules whose ELF machine differs from the target process (native bridge
+safety). Module-load observation covers late libraries. Java bridge is not bundled.
+Negative nonblocking handshake returns alone are NOT proof of pinning.
+One-shot Instagram CLI overrides `--frida-endpoint`/repeatable `--frida-script`
+require `--frida` and change in-memory settings only, not local YAML/registry.
+The adapter resolves an existing PID via ADB pidof, matching the operator's minimal
+probe; ambiguous PIDs are rejected rather than guessed. Generic spawn fallback
+remains if no app process exists; open IG manually for diagnostic attach testing.
+Frida script errors/unexpected detach fail health checks; cleanup preserves an
+existing primary exception. Console prints known TLS event names; full metadata
+goes to frida.jsonl, and the session directory is logged before connection.
+`frida inspect` is a separate device-locked, bounded metadata-only attach command.
+It uses only runtime_probe.js and disables spawn; caller explicitly selects native
+or emulated realm. Houdini's emulated realm may expose otherwise hidden ARM libs.
+It does NOT activate the TLS observer, alter proxy, or silently enable emulated
+mode in automation. Emulated-view compatibility still requires operator testing.
+
 Recorder exports are redacted best-effort and bounded to 2 MiB encoded/decoded JSON;
 other bodies are metadata-only. Raw `.mitm` is opt-in and unredacted. Proxy CA/config
 is isolated in configurable `mitm_confdir`; no CA is installed on Android.
+That describes the CLI: the operator separately approved and manually added the
+remote proxy's verified CA on android01. See AI_CONTEXT.md for provenance and hash.
+Remote capture is external to the current executor; keep `--no-capture` when UI
+automation uses that remote proxy. Local proxy_host is a bind address, not a remote endpoint.
 Session directories are created mode 0700 on POSIX. Job success with capture enabled
 requires at least one matching non-transport-error response. That does not prove
 semantic search extraction; the result explicitly reports it as unverified.

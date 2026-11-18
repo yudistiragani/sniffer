@@ -27,12 +27,14 @@ devices = typer.Typer(no_args_is_help=True, help="Adopt existing or manage newly
 stf = typer.Typer(no_args_is_help=True, help="Operate existing STF containers only.")
 appium = typer.Typer(no_args_is_help=True)
 mitm = typer.Typer(no_args_is_help=True)
+frida_cli = typer.Typer(no_args_is_help=True, help="Explicit Frida metadata diagnostics, no TLS bypass.")
 automation = typer.Typer(no_args_is_help=True)
 instagram = typer.Typer(no_args_is_help=True)
 app.add_typer(devices, name="device")
 app.add_typer(stf, name="stf")
 app.add_typer(appium, name="appium")
 app.add_typer(mitm, name="mitmproxy")
+app.add_typer(frida_cli, name="frida")
 app.add_typer(automation, name="automation")
 automation.add_typer(instagram, name="instagram")
 DeviceOption = Annotated[str, typer.Option("--device", "-d", help="Configured device name.")]
@@ -361,13 +363,35 @@ def instagram_search(
     scroll_pause_ms: int = 1500,
     capture: bool = True,
     frida: bool = False,
+    frida_endpoint: Annotated[
+        str | None, typer.Option(help="One-run Frida endpoint override; requires --frida.")
+    ] = None,
+    frida_script: Annotated[
+        list[str] | None,
+        typer.Option("--frida-script", help="Packaged .js resource; repeatable; requires --frida."),
+    ] = None,
     dry_run: bool = False,
 ):
+    settings: Settings = ctx.obj
+    if frida_endpoint is not None or frida_script:
+        if not frida:
+            raise ValueError("Frida overrides require explicit --frida.")
+        # No YAML/registry mutation: useful for a single controlled diagnostic run.
+        settings = settings.model_copy(deep=True)
+        if frida_endpoint is not None:
+            target = resolve(settings, device)
+            settings.devices[device] = target.model_copy(update={
+                "frida_endpoint": frida_endpoint, "frida_device_id": None,
+            })
+        if frida_script:
+            if "instagram" not in settings.platforms:
+                raise ValueError("Instagram configuration missing.")
+            settings.platforms["instagram"].frida_scripts = frida_script
     job = SearchJob(
         job_id=job_id or f"manual-{uuid.uuid4().hex}",
         keyword=keyword, scroll_count=scroll_count, scroll_pause_ms=scroll_pause_ms,
     )
-    emit(execute(ctx.obj, device, "instagram", job, capture=capture, frida=frida, dry_run=dry_run))
+    emit(execute(settings, device, "instagram", job, capture=capture, frida=frida, dry_run=dry_run))
 
 
 @app.command("worker")
@@ -382,3 +406,17 @@ def worker_command(
 ):
     from sniffer.worker import run_worker
     run_worker(ctx.obj, device, platform, capture=capture, frida=frida, once=once)
+
+
+@frida_cli.command("inspect")
+@guarded
+def frida_inspect(
+    ctx: typer.Context,
+    device: DeviceOption,
+    endpoint: Annotated[str, typer.Option(help="Explicit reachable Frida endpoint.")],
+    realm: str = "native",
+    duration: Annotated[int, typer.Option(min=1, max=30)] = 5,
+):
+    """Metadata-only attach to running Instagram; never spawn, bypass TLS, or alter proxy."""
+    from sniffer.integrations.frida import inspect_runtime
+    emit(inspect_runtime(ctx.obj, device, endpoint, realm, duration))

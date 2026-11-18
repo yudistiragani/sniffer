@@ -4,6 +4,16 @@ Base executor **Instagram keyword search** untuk Android/Redroid, dengan Appium,
 capture mitmproxy, Frida opsional, dan worker Beanstalk. TikTok baru extension point.
 Tidak ada API atau database server. Semua operasi device nyata dijalankan di server Linux.
 
+**Baseline UI sudah berhasil:** Appium saja, `--no-capture`, Frida tidak
+diaktifkan, proxy Android dinonaktifkan operator. Target berikutnya tetap HTTPS
+Instagram terbaca di proxy remote. Operator sudah menyiapkan Frida17.27.0 dan
+menguji attach native ringan; gunakan `frida inspect` untuk metadata realm sebelum
+hook TLS. **Belum ada bypass sertifikat yang dikirim/diaktifkan.**
+Integrasi tetap opt-in; tidak otomatis menghapus binary, menghentikan service,
+atau mengubah CA existing.
+Tim melaporkan Instagram 379 bermasalah pada search dan 416 bekerja tanpa proxy;
+catat versi aktual sebelum menyimpulkan masalah selector atau mengganti APK.
+
 ## Quick start lokal
 
 Python 3.12 dikelola oleh uv. Jalankan dari root repo:
@@ -165,6 +175,7 @@ yang mengklik STF, aplikasi eksternal, atau worker di host lain.
 - [Setup server/proxy/Appium/Frida](docs/server-setup.md)
 - [Operasi dan lifecycle](docs/operations.md)
 - [Redroid dengan Magisk](docs/redroid-magisk.md)
+- [Diagnostik TLS dengan Frida (tanpa bypass)](docs/frida-diagnostics.md)
 - [Konteks dan aturan agent](.ai/AI_CONTEXT.md)
 - [Arsitektur](.ai/ARCHITECTURE.md)
 - [Task lanjutan](.ai/TASKS.md)
