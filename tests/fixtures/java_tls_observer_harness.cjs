@@ -10,6 +10,7 @@ const args = [secret, {certificate: secret}, null];
 const result = {unchanged: true};
 let failure = null;
 let calls = 0;
+let backtraces = 0;
 const overload = {
     call(self, ...actual) {
         calls++;
@@ -23,7 +24,13 @@ const second = {call() { return undefined; }};
 const broken = {};
 Object.defineProperty(broken, "implementation", {set() {throw new Error(secret);}});
 const context = {
-    Process: {arch: "ia32"},
+    Process: {
+        arch: "ia32",
+        getCurrentThreadId() {
+            if (scenario === "metadata_error") throw new Error(secret);
+            return 42;
+        }
+    },
     send(event) {
         if (scenario === "transport") throw new Error(secret);
         events.push(event);
@@ -33,6 +40,15 @@ if (scenario !== "no_bridge") {
     context.Java = {
         available: scenario !== "unavailable",
         perform(callback) { callback(); },
+        backtrace(options) {
+            backtraces++;
+            assert.equal(options.limit, 12);
+            if (scenario === "metadata_error") throw new Error(secret);
+            return {frames: Array.from({length: 20}, () => ({
+                className: "com.example.TlsCaller", methodName: "verify",
+                origin: secret, signature: secret, fileName: secret
+            }))};
+        },
         use(name) {
             if (scenario === "missing" || name !== "com.android.org.conscrypt.TrustManagerImpl")
                 throw new Error(secret);
@@ -54,6 +70,24 @@ if (["no_bridge", "unavailable", "missing"].includes(scenario)) {
     assert.equal(overload.implementation.apply(receiver, args), result);
     assert.equal(second.implementation.call(receiver), undefined);
     assert.equal(calls, 1);
+    assert.equal(backtraces, 2);
+    if (scenario !== "transport") {
+        const starts = events.filter(e => e.event === "java_tls.call");
+        assert.equal(starts[0].callId, 1);
+        assert.equal(starts[0].threadId, scenario === "metadata_error" ? null : 42);
+        assert(!Number.isNaN(Date.parse(starts[0].time)));
+        const end = events.find(e => e.event === "java_tls.return");
+        assert.equal(end.callId, starts[0].callId);
+        const sample = events.find(e => e.event === "java_tls.caller");
+        assert.equal(sample.callId, starts[0].callId);
+        if (scenario === "metadata_error") assert.equal(sample.frames, null);
+        else {
+            assert.equal(sample.frames.length, 12);
+            assert.equal(JSON.stringify(sample.frames[0]), JSON.stringify({
+                className: "com.example.TlsCaller", method: "verify"
+            }));
+        }
+    }
     if (scenario === "limit") {
         for (let i = 0; i < 250; i++)
             assert.equal(overload.implementation.apply(receiver, args), result);
@@ -82,5 +116,6 @@ if (["no_bridge", "unavailable", "missing"].includes(scenario)) {
         }
     }
 }
+if (typeof overload.implementation === "function") assert.equal(backtraces, 2);
 assert(!JSON.stringify(events).includes(secret));
 console.log(JSON.stringify({ok: true}));

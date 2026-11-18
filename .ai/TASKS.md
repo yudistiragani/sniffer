@@ -36,9 +36,16 @@
 - [x] User probe returned arch ia32, bridgeLoaded true, javaAvailable true.
 - [x] Prepared observe-only shared/java_tls_observer.js and Node Java-bridge
   simulations; preserves exact original calls/results/exceptions, no bypass.
-- [ ] Operator: one bounded30s native REPL run, manually trigger search after
-  java_tls.ready; inspect actual call/reject metadata before targeting a verifier.
-  No concurrent job/observer (REPL does not take project lock), stop on crash.
+- [x] Operator Java run: installed7 all system Conscrypt, provided calls returned
+  normally/no rejects; both known OkHttp classes + org.conscrypt unavailable in
+  selected loader. Search still loading; proxy i.instagram.com handshake disconnect
+  at10:08:40.988. Successful Java calls not tied to failing connection.
+- [x] Added bounded once-per-overload Java caller symbols, UTC time/callId/threadId;
+  no raw stack/path/arguments or TLS decision changes.
+- [ ] Operator: one30s native REPL run with updated observer; manually search after
+  ready, share caller/call/return/reject metadata + proxy error/date/timezone.
+  No concurrent jobs (REPL has no project lock); stop on crash. Caller metadata
+  may identify the observed path, not establish host/socket correlation.
 - Native HTTPS capture is active priority; Beanstalk acceptance and image/OS
   migrations remain deferred. No APK switch or universal hook by guesswork.
 
@@ -62,7 +69,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **125 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
+Latest full run: **126 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
 installation was also exercised; the optional real-proxy test skips without capture extra.
 Observer JS is exercised under a Node-based simulated GumJS harness (Node optional
 for development, not a runtime requirement). This is not live native-hook validation.

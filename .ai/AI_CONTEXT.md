@@ -300,3 +300,18 @@ limit, absent bridge/classes and failed logging. Actual Java hooks remain untest
 on Android by agent; remote native HTTPS capture remains blocked/unaccepted.
 Local validation after Java observer:125 tests passed, Ruff/diff checks clean,
 wheel/sdist build succeeded. These include simulations, not live TLS validation.
+
+Operator supplied live Java observer output: installed7 = system Conscrypt
+verifyChain1/checkTrustedRecursive1/checkServerTrusted5. org.conscrypt and both
+known OkHttp CertificatePinner classes unavailable in the selected loader.
+Supplied repeated Conscrypt calls returned normally; no reject events. Search
+still loading; remote mitmproxy at10:08:40.988 reports client-disconnected handshake
+for i.instagram.com. This does not prove pinning or tie that connection to the
+successful Conscrypt calls. No bypass justified for this observed success path.
+Added UTC time/callId/native threadId and once-per-overload Java caller symbols
+(max12 frames, class/method only, max200 chars each; no raw stack/signatures/paths/
+arguments). Failed sampling does not alter verifier behavior. Next one bounded
+native REPL run to identify callers, with contemporaneous proxy timestamp/timezone.
+Still no destination/socket correlation; JNI/native callers may not appear.
+Local validation after caller metadata:126 tests passed, Ruff/diff clean,
+wheel/sdist build succeeded; metadata lookup failure and capped samples simulated.

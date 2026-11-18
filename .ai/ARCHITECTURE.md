@@ -78,6 +78,11 @@ It does not hook class loading, exception constructors, or alter TLS decisions.
 It may miss other loaders/late/obfuscated/native verification. REPL duration is
 bounded by the operator command; unlike CLI jobs it has no project device lock:
 operator exclusivity is mandatory. See docs/frida-diagnostics.md.
+Java events now include UTC time and callId/threadId for invocation pairing.
+One caller sample per overload has up to12 Java class/method symbols only (200
+characters each), no signature/origin/path/raw stack or arguments. Sampling and
+thread lookup failures are isolated from the original verifier. No socket/host
+correlation is implied; a Java backtrace may omit native callers.
 
 Recorder exports are redacted best-effort and bounded to 2 MiB encoded/decoded JSON;
 other bodies are metadata-only. Raw `.mitm` is opt-in and unredacted. Proxy CA/config

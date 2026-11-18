@@ -108,14 +108,29 @@ OkHttp `CertificatePinner.check/check$okhttp` methods. It forwards the exact
 receiver/arguments to the exact original overload and returns its result or
 rethrows the same exception. It does not change trust decisions.
 
-Events contain fixed class/method names, overload indices and coarse rejection
-categories only. Messages are inspected locally, bounded to4096 characters, never
+Events contain class/method names, overload indices, UTC timestamps, per-invocation
+callId and native threadId (null if unavailable), and coarse rejection categories.
+The first invocation of each hooked overload also emits `java_tls.caller`: up to12
+Java frame class/method names only, each limited to200 symbol characters. No
+signature, origin/path, filename, line, native address, or raw stack is exported.
+If backtrace fails, frames is null; original verification still executes.
+Messages are inspected locally, bounded to4096 characters, never
 emitted. Categories are reported hints, not definitive root causes. No hostname,
-certificate, stack, request content or raw exception is exported. Logging is capped
+certificate, request content or raw exception is exported. Logging is capped
 at200 events plus one limit marker; original calls continue after the cap.
 Missing/obfuscated classes, other class loaders, late-loaded classes and native
 verification may be missed. No class-loading hooks or SSL exception constructor
 hooks are installed. Zero events does not rule out pinning.
+
+Operator results: seven hooks were all system Conscrypt; org.conscrypt and both
+known OkHttp classes were unavailable to the selected class loader. Provided calls
+returned normally, without rejection, while search kept loading and mitmproxy
+reported client-disconnected handshake at i.instagram.com (10:08:40.988). This
+generic proxy message does not identify pinning, and successful Conscrypt calls
+are not correlated to that host. Next use caller samples/time/thread metadata to
+identify the observed Java path. These fields still do NOT identify a destination
+or prove that a Java invocation belongs to a particular proxy connection; native
+callers through JNI may be absent from Java backtraces.
 
 After deploying the code, finish all workers/observers, open IG manually and keep
 the existing proxy/server/forward. Run once in native realm for30seconds, and
@@ -140,7 +155,8 @@ uv run --extra frida \
 
 No spawn, eternalize, CA/proxy changes, service restart or automatic app launch.
 At timeout the REPL exits and unloads the observer. Share the `java_tls.*` metadata,
-especially ready/call/reject events; inspect locally first. If only hook_ready
+especially caller/call/return/reject events and contemporaneous proxy errors
+(include date/time/timezone for clock comparison); inspect locally first. If only hook_ready
 appears, do not infer that those methods handled the failed search.
 
 ## Local validation
