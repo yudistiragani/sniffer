@@ -315,3 +315,25 @@ native REPL run to identify callers, with contemporaneous proxy timestamp/timezo
 Still no destination/socket correlation; JNI/native callers may not appear.
 Local validation after caller metadata:126 tests passed, Ruff/diff clean,
 wheel/sdist build succeeded; metadata lookup failure and capped samples simulated.
+
+Latest user trace at10:16:12.716Z identified actual Java caller path:
+TigonMNSServiceHolder.runEVLoop -> Facebook MobileNetwork CertificateVerifier
+verifyWithProofOfPossession -> verify -> X509TrustManagerExtensions -> Conscrypt.
+Provided Conscrypt calls returned normally on thread31614. Global200-event cap
+was reached at call93; no conclusion about unrecorded outer verifier decisions.
+Signature-only probe confirmed CertificateVerifier.verify returns void for
+(X509Certificate[],String,boolean), (byte[][],String), (byte[][],String,boolean);
+verifyWithProofOfPossession returns void for
+(byte[][],String,boolean,int,byte[],byte[]).
+Prepared observe-only hooks of both Facebook methods in the same Java REPL script.
+Do not force a boolean or assume the method name proves pinning/PoP rejection.
+Call/return metadata is now sampled for first2 invocations per overload; all
+exceptions still emit sanitized reject metadata until global200 cap. Every
+original invocation still executes and preserves void result/exception identity.
+Next one30s operator native run, manually search; inspect Facebook-class
+call/return/reject events with concurrent proxy error. Same loaded classes would
+yield11 installed hooks; class-specific hook_ready is the actual coverage evidence.
+No host/socket correlation or decrypted-traffic acceptance yet.
+Local validation after Facebook observer/sampling:127 tests passed, Ruff/diff
+clean, wheel/sdist build succeeded. Facebook hook behavior is simulated only;
+operator has verified its signatures/caller path, not yet its observed outcomes.

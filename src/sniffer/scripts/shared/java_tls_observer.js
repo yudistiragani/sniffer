@@ -4,6 +4,7 @@
 
 (() => {
     const maxEvents = 200;
+    const maxInvocationSamplesPerOverload = 2;
     let emitted = 0;
     let nextCallId = 0;
     function emit(event, fields) {
@@ -56,6 +57,7 @@
 
     emit("java_tls.runtime", {
         arch: Process.arch, mode: "observe_only", maxEvents: maxEvents,
+        maxInvocationSamplesPerOverload: maxInvocationSamplesPerOverload,
         bridgeLoaded: typeof Java !== "undefined",
         javaAvailable: typeof Java !== "undefined" && Java.available
     });
@@ -65,6 +67,9 @@
         Java.perform(() => {
             let installed = 0;
             const targets = [
+                // Observed in the operator's Java caller trace and signature probe.
+                ["com.facebook.mobilenetwork.internal.certificateverifier.CertificateVerifier",
+                    ["verify", "verifyWithProofOfPossession"]],
                 ["com.android.org.conscrypt.TrustManagerImpl",
                     ["verifyChain", "checkTrustedRecursive", "checkServerTrusted"]],
                 ["org.conscrypt.TrustManagerImpl",
@@ -86,13 +91,18 @@
                         if (!dispatcher || !dispatcher.overloads) continue;
                         dispatcher.overloads.forEach((overload, index) => {
                             let sampled = false;
+                            let invocations = 0;
                             // Capture this exact overload; do not redispatch or recurse.
                             overload.implementation = function () {
                                 const metadata = {
                                     className: className, method: method, overload: index,
                                     callId: ++nextCallId, threadId: threadId()
                                 };
-                                emit("java_tls.call", metadata);
+                                // Keep repeated successful verifier traffic from exhausting
+                                // the budget before the outer Facebook verifier can reject.
+                                // Rejections are still logged after this sampling threshold.
+                                const logInvocation = ++invocations <= maxInvocationSamplesPerOverload;
+                                if (logInvocation) emit("java_tls.call", metadata);
                                 if (!sampled && emitted < maxEvents) {
                                     sampled = true;
                                     emit("java_tls.caller", Object.assign({}, metadata, {
@@ -108,7 +118,7 @@
                                     }));
                                     throw error;
                                 }
-                                emit("java_tls.return", metadata);
+                                if (logInvocation) emit("java_tls.return", metadata);
                                 return result;
                             };
                             installed++;

@@ -104,7 +104,10 @@ The native observer installed six hooks but the supplied output had no `tls.call
 
 `shared/java_tls_observer.js` observes available overloads of Conscrypt
 `TrustManagerImpl.verifyChain/checkTrustedRecursive/checkServerTrusted` and known
-OkHttp `CertificatePinner.check/check$okhttp` methods. It forwards the exact
+OkHttp `CertificatePinner.check/check$okhttp` methods. It also observes
+`com.facebook.mobilenetwork.internal.certificateverifier.CertificateVerifier`
+`verify`/`verifyWithProofOfPossession`, identified by the operator's caller trace
+and signature-only probe, rather than guessing an unrelated bypass. It forwards the exact
 receiver/arguments to the exact original overload and returns its result or
 rethrows the same exception. It does not change trust decisions.
 
@@ -118,6 +121,11 @@ Messages are inspected locally, bounded to4096 characters, never
 emitted. Categories are reported hints, not definitive root causes. No hostname,
 certificate, request content or raw exception is exported. Logging is capped
 at200 events plus one limit marker; original calls continue after the cap.
+Only the first two invocations per overload emit call/return pairs. Reject events
+are emitted on ANY failed invocation until the global200 event cap, including
+failures after those two samples; they can therefore have no preceding call event.
+This avoids a flood of successful Conscrypt calls consuming the budget first.
+Sampling does not skip any original call. Call IDs still advance on unsampled calls.
 Missing/obfuscated classes, other class loaders, late-loaded classes and native
 verification may be missed. No class-loading hooks or SSL exception constructor
 hooks are installed. Zero events does not rule out pinning.
@@ -127,10 +135,25 @@ known OkHttp classes were unavailable to the selected class loader. Provided cal
 returned normally, without rejection, while search kept loading and mitmproxy
 reported client-disconnected handshake at i.instagram.com (10:08:40.988). This
 generic proxy message does not identify pinning, and successful Conscrypt calls
-are not correlated to that host. Next use caller samples/time/thread metadata to
-identify the observed Java path. These fields still do NOT identify a destination
+are not correlated to that host. The next caller trace at10:16:12.716Z identified
+TigonMNSServiceHolder.runEVLoop -> CertificateVerifier.verifyWithProofOfPossession
+-> verify -> X509TrustManagerExtensions -> Conscrypt. Conscrypt calls returned
+normally; the original200-event budget was exhausted at call93, hiding later
+events. These fields still do NOT identify a destination
 or prove that a Java invocation belongs to a particular proxy connection; native
 callers through JNI may be absent from Java backtraces.
+
+The signature probe found three `verify` overloads returning void:
+`(X509Certificate[], String, boolean)`, `(byte[][], String)`, and
+`(byte[][], String, boolean)`; and one void `verifyWithProofOfPossession`
+`(byte[][], String, boolean, int, byte[], byte[])`. Therefore observe whether the
+outer methods throw or return normally, never guess a boolean return or force
+success. The method name alone does not establish a pinning or proof failure.
+Next run the updated observer once and inspect Facebook-class call/return/reject
+events. A normal void return is NOT proof that the TLS handshake/search succeeded;
+validation could still fail elsewhere. With the same loaded classes, expect11
+installed hooks (previous7 + Facebook4), but use per-class hook_ready rather than
+relying on the total.
 
 After deploying the code, finish all workers/observers, open IG manually and keep
 the existing proxy/server/forward. Run once in native realm for30seconds, and
@@ -167,5 +190,7 @@ missing/forwarded exports, attach errors, untouched args/returns, module unload/
 reload, and event limit. These tests do not verify real Android interception.
 The Java bridge simulation additionally checks exact argument/receiver/result
 preservation, exception identity, unavailable bridge/classes, partial hook failure,
-message classification/privacy, transport failures, and the logging cap. It is not
+message classification/privacy, transport failures, success-flood sampling,
+rejection logging after sampling/cap and exact forwarding/void results/exceptions
+for all four observed Facebook overload shapes. It is not
 a live Android/Conscrypt/OkHttp test.

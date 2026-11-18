@@ -42,10 +42,16 @@
   at10:08:40.988. Successful Java calls not tied to failing connection.
 - [x] Added bounded once-per-overload Java caller symbols, UTC time/callId/threadId;
   no raw stack/path/arguments or TLS decision changes.
-- [ ] Operator: one30s native REPL run with updated observer; manually search after
-  ready, share caller/call/return/reject metadata + proxy error/date/timezone.
-  No concurrent jobs (REPL has no project lock); stop on crash. Caller metadata
-  may identify the observed path, not establish host/socket correlation.
+- [x] User caller trace identified Facebook MobileNetwork CertificateVerifier
+  verifyWithProofOfPossession -> verify -> Conscrypt, called from Tigon event loop.
+  Conscrypt returned normally;200-event cap reached at call93.
+- [x] User signature probe:3 verify overloads +1 verifyWithProofOfPossession, all void.
+- [x] Added observe-only Facebook method hooks; call/return first2 invocations per
+  overload, all rejects eligible until global cap. No bypass or discarded errors.
+- [ ] Operator: one30s native REPL run of updated observer, manually search after
+  ready; share Facebook-class call/return/reject + contemporaneous proxy error.
+  No concurrent jobs (REPL has no project lock); stop on crash. No claim of
+  host/socket correlation, pinning cause or decrypted capture yet.
 - Native HTTPS capture is active priority; Beanstalk acceptance and image/OS
   migrations remain deferred. No APK switch or universal hook by guesswork.
 
@@ -69,7 +75,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **126 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
+Latest full run: **127 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
 installation was also exercised; the optional real-proxy test skips without capture extra.
 Observer JS is exercised under a Node-based simulated GumJS harness (Node optional
 for development, not a runtime requirement). This is not live native-hook validation.

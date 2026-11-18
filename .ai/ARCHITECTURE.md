@@ -83,6 +83,12 @@ One caller sample per overload has up to12 Java class/method symbols only (200
 characters each), no signature/origin/path/raw stack or arguments. Sampling and
 thread lookup failures are isolated from the original verifier. No socket/host
 correlation is implied; a Java backtrace may omit native callers.
+The observed Facebook MobileNetwork CertificateVerifier verify/
+verifyWithProofOfPossession overloads are also wrapped, without altering void
+returns or original exceptions. First2 invocations per overload emit call/return
+pairs; all rejects remain eligible until global200-event cap (even if their call
+was unsampled). This keeps repeated successful Conscrypt calls from hiding the
+outer verifier's result. Caller sampling stays once per overload.
 
 Recorder exports are redacted best-effort and bounded to 2 MiB encoded/decoded JSON;
 other bodies are metadata-only. Raw `.mitm` is opt-in and unredacted. Proxy CA/config
