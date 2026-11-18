@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from sniffer.automation.gestures import scroll_up
 from sniffer.jobs import SearchJob
-from sniffer.platforms.instagram.selectors import wait_for
+from sniffer.platforms.instagram.selectors import interact, wait_for
 from sniffer.settings import Platform
 
 logger = logging.getLogger(__name__)
@@ -32,14 +32,41 @@ def search(driver, config: Platform, job: SearchJob, checkpoint: Callable[[], No
         driver, config.selectors.get("search_tab", []),
         name="search_tab", checkpoint=checkpoint,
     ))
-    step("search_tab.click", tab.click)
+    step("search_tab.click", lambda: interact(
+        driver, config.selectors.get("search_tab", []), lambda element: element.click(),
+        initial=tab, name="search_tab.click", checkpoint=checkpoint,
+    ))
     field = step("search_input.find", lambda: wait_for(
         driver, config.selectors.get("search_input", []),
         name="search_input", checkpoint=checkpoint,
     ))
-    step("search_input.click", field.click)
-    step("search_input.clear", field.clear)
-    step("search_input.type", lambda: field.send_keys(job.keyword))
+    field = step("search_input.click", lambda: interact(
+        driver, config.selectors.get("search_input", []), lambda element: element.click(),
+        initial=field, name="search_input.click", checkpoint=checkpoint,
+    ))
+
+    def enter_keyword(element):
+        # Retry this whole transaction, not send_keys alone: a partial stale send must
+        # be cleared on the fresh element, otherwise the keyword may be duplicated.
+        step("search_input.clear", element.clear)
+        step("search_input.type", lambda: element.send_keys(job.keyword))
+
+        def verify():
+            deadline = time.monotonic() + 3
+            while True:
+                checkpoint()
+                if element.get_attribute("text") == job.keyword:
+                    return
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("Instagram keyword was not confirmed in the search input.")
+                time.sleep(0.1)
+
+        step("search_input.verify", verify)
+
+    interact(
+        driver, config.selectors.get("search_input", []), enter_keyword,
+        initial=field, name="search_input.enter", checkpoint=checkpoint,
+    )
     # Android ENTER: submit rather than only loading typeahead.
     step("search_input.submit", lambda: driver.press_keycode(66))
     step("search_results.find", lambda: wait_for(

@@ -93,9 +93,8 @@ def execute(
                     from sniffer.integrations.mitmproxy import ProxyCapture
                     proxy = stack.enter_context(ProxyCapture(settings, device, output))
                     event("capture_ready")
-                from sniffer.integrations.appium import connect
-                driver = connect(device, settings.platforms[platform])
-                stack.callback(driver.quit)
+                from sniffer.integrations.appium import session
+                driver = stack.enter_context(session(device, settings.platforms[platform]))
                 if frida:
                     from sniffer.integrations.frida import Instrumentation
                     stack.enter_context(Instrumentation(device, settings.platforms[platform], output))

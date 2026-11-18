@@ -46,11 +46,14 @@ def lock(settings: Settings, resource: str) -> FileLock:
     return FileLock(directory / f"{resource}.lock", timeout=0)
 
 
-def require_free_port(host: str, port: int) -> None:
+def require_free_port(host: str, port: int, *, reuse_address: bool = False) -> None:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             if os.name == "nt":
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            elif reuse_address:
+                # Ignore reusable TIME_WAIT sockets, not active listeners.
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((host, port))
     except OSError as error:
         raise RuntimeError(f"Port unavailable: {host}:{port}") from error

@@ -30,6 +30,31 @@ Default URL `http://127.0.0.1:4723`, tanpa legacy `/wd/hub`.
 Gunakan systemPort berbeda per device. Appium `noReset=true`, `autoLaunch=false`,
 `shouldTerminateApp=false`; tidak menghapus data akun. Verifikasi dengan Inspector.
 
+### Stale element dan systemPort occupied
+
+Instagram dapat mengganti UI tree antara lookup dan klik. Interaksi sekarang
+mencari ulang elemen pada `StaleElementReferenceException`, maksimal tiga percobaan,
+dan mencatat `STALE_RETRY`. Keyword diganti sebagai satu transaksi clear/type/verify;
+retry tidak menambahkan keyword ke teks parsial. Error driver lain tetap gagal.
+
+Session milik job ditutup dengan `quit()` di context manager; cleanup punya log
+START/END/FAILED. Error cleanup tidak menutupi kegagalan UI yang sudah terjadi.
+Jika cleanup gagal pada job yang tadinya sukses, job tetap dianggap gagal.
+
+Sebelum sesi baru, executor menunggu systemPort maksimal lima detik. POSIX bind
+check mengizinkan reuse TIME_WAIT, tetapi tetap menolak listener aktif. Penyebab
+port sibuk tidak boleh diasumsikan dari satu pesan error. Untuk diagnosis read-only
+di server (contoh android01/systemPort8201):
+
+```bash
+adb -s 127.0.0.1:5555 forward --list
+ss -ltnp '( sport = :8201 )'
+```
+
+Jangan `kill`, `adb kill-server`, menghapus semua forward, atau mengganti systemPort
+untuk menghindari sesi lama tanpa memeriksa ownership. Tool tidak otomatis
+menghapus forward milik proses lain. Periksa juga Appium server log bila quit gagal.
+
 ## 3. Proxy dan CA
 
 Default proxy listen host adalah loopback executor. Untuk Redroid, koneksi

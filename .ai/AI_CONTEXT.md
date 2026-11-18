@@ -85,4 +85,15 @@ data: leave ignored in output/, never copy it wholesale into fixtures or docs.
 Search now logs START/END/FAILED per lookup, click, clear, type, submit, results,
 and scroll, without keyword/text or raw exception details. Named selector timeouts
 and health checks help identify which Appium call fails/stalls. This is diagnostic
-instrumentation, not a confirmed live fix; next step is rerun and collect those logs.
+instrumentation, not a confirmed live fix.
+
+User's next run reported `StaleElementReferenceException` at `search_tab.click`
+after successful lookup, then `Port unavailable: 127.0.0.1:8201` on retry.
+Stale element references are now reacquired with at most three interaction attempts;
+lookup tolerates stale visibility checks. Input retries clear + replace + verify the
+whole keyword, never blindly append a possibly partially entered keyword.
+Appium startup briefly waits for systemPort and uses a POSIX reusable bind check to
+avoid treating reusable TIME_WAIT as an active listener. The actual port owner is
+not known from user logs: this may still be an active session/ADB forward.
+Session cleanup is logged and preserves primary UI failures if quit also fails.
+No automatic process kill, forward removal, or device reset is performed.

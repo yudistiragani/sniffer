@@ -20,7 +20,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **70 passed**, Ruff clean. Initial sdist/wheel build was successful. Base-only
+Latest full run: **83 passed**, Ruff clean. Initial sdist/wheel build was successful. Base-only
 installation was also exercised; the optional real-proxy test skips without capture extra.
 No real Instagram, remote Docker, STF, Magisk device, Appium server, or production
 Beanstalk queue was tested. Passing tests are NOT live acceptance.
@@ -37,9 +37,10 @@ Beanstalk queue was tested. Passing tests are NOT live acceptance.
   on Docker Hub or trust arbitrary prebuilt images. Pin image digest after testing.
 - Check Android 9 compatibility of Appium/UiAutomator2 and native bridge/app ABI.
 - Inspect Instagram version, language, UI locators, active search-result tab.
-- Rerun UI-only search with per-step logs: supplied XML proves the configured input
-  EditText exists, empty/unfocused, but does not identify the stalled/failed RPC.
-  No guessed extra tap or replacement locator was added.
+- Rerun UI-only search after the stale-element fix: user logs identify stale at
+  search_tab.click, followed by occupied systemPort 8201. Reacquisition, bounded
+  port wait/TIME_WAIT tolerance, and cleanup logging are implemented, not live verified.
+  If port remains busy, inspect Appium sessions/ADB forwards; do not kill unknown owners.
 - Verify login manually; do not add automated credential entry.
 - Set up actual proxy reachability, CA trust, and optional Frida server/scripts.
 - Get real search-response samples; implement semantic extraction with fixtures.

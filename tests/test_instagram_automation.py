@@ -6,7 +6,11 @@ import pytest
 
 from sniffer.jobs import SearchJob
 from sniffer.platforms.instagram.automation import search
-from sniffer.platforms.instagram.selectors import wait_for
+from sniffer.platforms.instagram.selectors import interact, wait_for
+
+
+class StaleElementReferenceException(Exception):
+    """Offline W3C error stand-in; Selenium is an optional dependency."""
 
 
 def search_driver():
@@ -14,6 +18,7 @@ def search_driver():
     tab, field, results = MagicMock(), MagicMock(), MagicMock()
     for element in (tab, field, results):
         element.is_displayed.return_value = True
+    field.get_attribute.return_value = "private-keyword"
     mapping = {
         ("accessibility id", "Search and explore"): tab,
         ("id", "com.instagram.android:id/action_bar_search_edit_text"): field,
@@ -38,6 +43,7 @@ def test_search_logs_each_input_operation_without_keyword(settings, caplog):
     for name in (
         "search_tab.find", "search_tab.click", "search_input.find", "search_input.click",
         "search_input.clear", "search_input.type", "search_input.submit", "search_results.find",
+        "search_input.verify",
     ):
         assert f"step={name} status=START" in caplog.text
         assert f"step={name} status=END" in caplog.text
@@ -91,3 +97,99 @@ def test_default_input_selector_matches_sanitized_device_structure(settings):
         driver, settings.platforms["instagram"].selectors["search_input"]
     ) is element
     assert node.get("focused") == "false" and node.get("text") == ""
+
+
+def test_stale_visibility_reacquires_before_return():
+    driver, old, fresh = MagicMock(), MagicMock(), MagicMock()
+    old.is_displayed.side_effect = StaleElementReferenceException()
+    fresh.is_displayed.return_value = True
+    driver.find_elements.side_effect = [[old], [fresh]]
+    assert wait_for(driver, [("id", "input")], timeout=2) is fresh
+    assert driver.find_elements.call_count == 2
+
+
+def test_stale_click_reacquires_element_and_is_bounded(caplog):
+    driver, old, fresh = MagicMock(), MagicMock(), MagicMock()
+    old.click.side_effect = StaleElementReferenceException()
+    fresh.is_displayed.return_value = True
+    driver.find_elements.return_value = [fresh]
+    with caplog.at_level(logging.WARNING):
+        result = interact(
+            driver, [("id", "tab")], lambda e: e.click(), initial=old,
+            name="search_tab.click", checkpoint=lambda: None,
+        )
+    assert result is fresh
+    old.click.assert_called_once()
+    fresh.click.assert_called_once()
+    assert "status=STALE_RETRY next_attempt=2/3" in caplog.text
+
+
+def test_persistent_stale_does_not_retry_forever():
+    driver, element = MagicMock(), MagicMock()
+    element.is_displayed.return_value = True
+    element.click.side_effect = StaleElementReferenceException()
+    driver.find_elements.return_value = [element]
+    with pytest.raises(StaleElementReferenceException):
+        interact(
+            driver, [("id", "tab")], lambda e: e.click(),
+            name="search_tab.click", checkpoint=lambda: None,
+        )
+    assert driver.find_elements.call_count == element.click.call_count == 3
+
+
+def test_non_stale_driver_error_is_not_replayed():
+    driver, element = MagicMock(), MagicMock()
+    element.click.side_effect = RuntimeError("driver disconnected")
+    with pytest.raises(RuntimeError, match="disconnected"):
+        interact(
+            driver, [("id", "tab")], lambda e: e.click(), initial=element,
+            name="search_tab.click", checkpoint=lambda: None,
+        )
+    element.click.assert_called_once()
+    driver.find_elements.assert_not_called()
+
+
+def test_partial_stale_typing_clears_fresh_element_before_retyping(settings, caplog):
+    driver, _, old = search_driver()
+    old.send_keys.side_effect = StaleElementReferenceException()
+    fresh = MagicMock()
+    fresh.is_displayed.return_value = True
+    fresh.get_attribute.return_value = "private-keyword"
+    original = driver.find_elements.side_effect
+    inputs = iter([old, fresh])
+    def lookup(strategy, value):
+        if value == "com.instagram.android:id/action_bar_search_edit_text":
+            return [next(inputs)]
+        return original(strategy, value)
+    driver.find_elements.side_effect = lookup
+    order = MagicMock()
+    order.attach_mock(fresh.clear, "clear")
+    order.attach_mock(fresh.send_keys, "type")
+    with caplog.at_level(logging.INFO):
+        search(
+            driver, settings.platforms["instagram"],
+            SearchJob(job_id="partial", keyword="private-keyword", scroll_count=0), lambda: None,
+        )
+    old.clear.assert_called_once()
+    fresh.clear.assert_called_once()
+    fresh.send_keys.assert_called_once_with("private-keyword")
+    assert [call[0] for call in order.mock_calls] == ["clear", "type"]
+    assert "step=search_input.enter status=STALE_RETRY" in caplog.text
+    assert "private-keyword" not in caplog.text
+    driver.press_keycode.assert_called_once_with(66)
+
+
+def test_keyword_readback_mismatch_never_submits(settings, monkeypatch):
+    from itertools import count
+
+    driver, _, field = search_driver()
+    field.get_attribute.return_value = "wrong-value"
+    ticks = count()
+    monkeypatch.setattr("sniffer.platforms.instagram.automation.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("sniffer.platforms.instagram.automation.time.sleep", lambda _: None)
+    with pytest.raises(RuntimeError, match="not confirmed"):
+        search(
+            driver, settings.platforms["instagram"],
+            SearchJob(job_id="mismatch", keyword="private-keyword", scroll_count=0), lambda: None,
+        )
+    driver.press_keycode.assert_not_called()

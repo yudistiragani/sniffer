@@ -24,6 +24,12 @@ configured selectors are initial candidates, not verified against the user's app
 The search-input ID was subsequently observed in a user-provided XML dump (not
 proof the whole flow works). Instagram UI actions emit per-step START/END/FAILED
 terminal logs, with named lookup timeouts and health checkpoints while polling.
+Stale-only interactions reacquire a fresh element at most three times. Keyword
+entry retries are clear/type/readback transactions to prevent duplicate partial
+text. Unrelated driver errors are not retried. Appium's session context logs quit,
+fails successful jobs when quit fails, and preserves an already raised UI exception.
+Before connecting, systemPort is checked with a short bounded wait and POSIX
+SO_REUSEADDR (TIME_WAIT tolerance, not permission to take over a listener).
 
 Standalone capture needs no Appium. Standalone automation can disable capture.
 mitmproxy addon runs in the mitmdump process; it imports parser/writer from this
