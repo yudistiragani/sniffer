@@ -337,3 +337,44 @@ No host/socket correlation or decrypted-traffic acceptance yet.
 Local validation after Facebook observer/sampling:127 tests passed, Ruff/diff
 clean, wheel/sdist build succeeded. Facebook hook behavior is simulated only;
 operator has verified its signatures/caller path, not yet its observed outcomes.
+
+Latest operator run at10:26:49Z installed all11 expected hooks. At10:26:55Z
+same thread32571: Facebook verifyWithProofOfPossession call1 -> verify
+(X509Certificate[],String,boolean) call2 -> Conscrypt calls3-6 RETURN normally,
+then Facebook verify call2 REJECT reported_pinning at10:26:55.573Z and outer
+verifyWithProofOfPossession call1 REJECT at10:26:55.575Z. Pattern repeats through
+10:27:06.954Z. The outer event is consistent with exception propagation, not
+evidence of a second independent PoP failure.
+Strong observed evidence of app-level Facebook verifier rejection categorized
+from pin-related exception text after system trust success; raw exception text
+was not exported and no host/socket correlation exists. Not capture acceptance.
+No need to repeat the same observer just to establish this rejection path.
+Next decision requires operator approval before preparing a separate opt-in
+targeted pinning exception override for a bounded authorized test. Keep observer
+non-mutating; do not implicitly change TLS/CA/APK/OS or enable a bypass in workers.
+
+Operator explicitly chose "Siapkan uji bypass terarah" on the approval form:
+prepare a separate opt-in bounded authorized test, retain original system trust,
+no CA/APK/OS changes or implicit worker activation. Implemented
+instagram/facebook_pinning_trial.js (official native REPL only). Exact package
+IG416.0.0.47.66/versionCode382206160/ia32 guard; original verify(cert[],host,bool)
+always runs. Only recognized pinning-failure text on typed Java CertificateException/
+SSLPeerUnverifiedException may be suppressed, for exact i.instagram.com or
+i-fallback.instagram.com, after original checkServerTrusted(cert[],auth,host)
+accepted same host/equal leaf within current invocation/thread, with no trust
+failure. Other errors preserve exception identity. Outer PoP method is not hooked.
+Internal30second deadline even if left loaded;100 metadata events+marker, no raw
+messages/certs/args/dynamic hosts. Observer remains unchanged; no config/worker
+integration. Fail-closed mismatch must not be worked around blindly.
+The original method cannot resume after its throw; later internal checks might
+not run. This is explicit temporary weakened app pinning, not production-safe or
+universal. Original outer verification may reject independently. No live test by
+agent; NEXT operator deploy and one bounded run, manually search after ready,
+share events + HTTP hostname/status/time and UI outcome (no bodies/secrets).
+See docs/facebook-pinning-trial.md for command/constraints. Do not run observer
+and trial concurrently; REPL doesn't take project locks. Stop on crash.
+Specialized/app-specific exception subclasses also fail closed even if they
+mention pinning; only the two exact standard exception classes are eligible.
+Local validation:162 tests passed, Ruff/diff clean, wheel/sdist build succeeded;
+wheel contains the trial JS. All trial behavior tests are Node simulations, not
+live Instagram interception. No device commands or deployment performed by agent.

@@ -155,6 +155,23 @@ validation could still fail elsewhere. With the same loaded classes, expect11
 installed hooks (previous7 + Facebook4), but use per-class hook_ready rather than
 relying on the total.
 
+Latest operator result (10:26:55Z): all11 hooks installed; on the same thread,
+Conscrypt returned normally inside Facebook `verify` overload0, followed by
+`java_tls.reject` with `reported_pinning` in that verifier and its outer
+`verifyWithProofOfPossession`. The repeating nested pattern is strong evidence of
+pin-related rejection in the app-level verifier after system trust success.
+The outer rejection can simply be propagation of the inner exception; it does
+not prove an independent proof-of-possession check failed. Classification is
+derived from message text, not a raw exception dump or host/socket correlation.
+Do not repeat the observer solely to establish this now-observed rejection path.
+Any next interception that overrides a decision requires explicit operator
+approval and a separate opt-in bounded test; the observer remains non-mutating.
+Readable native HTTPS/search acceptance has not yet been demonstrated.
+The operator subsequently approved preparing a separate targeted test; see
+[temporary Facebook pinning trial](facebook-pinning-trial.md) for its guard
+conditions, explicit security change, limitations and one-run command. This Java
+observer is unchanged and remains non-mutating. Never run both scripts together.
+
 After deploying the code, finish all workers/observers, open IG manually and keep
 the existing proxy/server/forward. Run once in native realm for30seconds, and
 manually trigger a search in STF after `java_tls.ready`. No Appium or worker

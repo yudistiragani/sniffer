@@ -90,6 +90,17 @@ pairs; all rejects remain eligible until global200-event cap (even if their call
 was unsampled). This keeps repeated successful Conscrypt calls from hiding the
 outer verifier's result. Caller sampling stays once per overload.
 
+After explicit operator approval, `instagram/facebook_pinning_trial.js` is a
+SEPARATE opt-in native REPL test, not an observer/default/worker feature. Exact
+IG416/versionCode382206160/ia32 and method signatures are required. It calls
+original Facebook verify(cert[],host,bool) first, and overrides only recognized
+typed pin exceptions for two fixed IG hosts when original Conscrypt accepted the
+same host/equal leaf in that invocation/thread and no trust call failed. Other
+errors/hosts/overloads and outer PoP verification remain original. Thirty-second
+internal deadline disables override independently of REPL timeout; logging caps
+at100+marker. Unload on REPL exit; no CA/APK/OS/config changes. Fail-closed guards
+and limitations are in docs/facebook-pinning-trial.md. No live acceptance yet.
+
 Recorder exports are redacted best-effort and bounded to 2 MiB encoded/decoded JSON;
 other bodies are metadata-only. Raw `.mitm` is opt-in and unredacted. Proxy CA/config
 is isolated in configurable `mitm_confdir`; no CA is installed on Android.

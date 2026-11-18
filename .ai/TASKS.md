@@ -48,10 +48,20 @@
 - [x] User signature probe:3 verify overloads +1 verifyWithProofOfPossession, all void.
 - [x] Added observe-only Facebook method hooks; call/return first2 invocations per
   overload, all rejects eligible until global cap. No bypass or discarded errors.
-- [ ] Operator: one30s native REPL run of updated observer, manually search after
-  ready; share Facebook-class call/return/reject + contemporaneous proxy error.
-  No concurrent jobs (REPL has no project lock); stop on crash. No claim of
-  host/socket correlation, pinning cause or decrypted capture yet.
+- [x] Operator run installed11 hooks: Conscrypt returns normally inside Facebook
+  verify call2; verify rejects reported_pinning10:26:55.573Z and outer
+  verifyWithProofOfPossession propagates rejection10:26:55.575Z, same thread32571.
+  Pattern repeats. Strong evidence of app-level pin-related rejection after
+  system trust success, not proof of independent PoP failure/host correlation.
+- [x] Operator explicitly approved preparing a separate opt-in targeted test.
+- [x] Prepared instagram/facebook_pinning_trial.js: original verifier runs first;
+  exact build/ABI/signature/host guards, same-invocation/thread original system
+  trust acceptance for same leaf, typed recognized pin exception only,30s expiry.
+  Observer unchanged, no implicit worker activation or CA/APK/OS changes.
+- [ ] Operator: deploy then one bounded native REPL trial; manually search after
+  fb_trial.ready. Share override/preserved/refused events + UI outcome and
+  readable HTTP host/status/time in mitmweb. No concurrent hooks/jobs; stop on crash.
+  Native HTTP response/search acceptance remains pending.
 - Native HTTPS capture is active priority; Beanstalk acceptance and image/OS
   migrations remain deferred. No APK switch or universal hook by guesswork.
 
@@ -75,7 +85,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **127 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
+Latest full run: **162 passed**, Ruff/diff checks clean, sdist/wheel build successful. Base-only
 installation was also exercised; the optional real-proxy test skips without capture extra.
 Observer JS is exercised under a Node-based simulated GumJS harness (Node optional
 for development, not a runtime requirement). This is not live native-hook validation.
