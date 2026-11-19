@@ -658,7 +658,7 @@ schema remains keyword-only. Implemented worker-only 300s REPL/JS limit and
 marks unique-content count unverified because Appium currently has no stable
 post-transition detector. Tests use mocked Appium/Frida; live first-result
 selector/navigation and proxy capture still need operator verification.
-Local validation after content-feed change:340 tests passed, Ruff/diff clean and
+Local validation after content-feed change:342 tests passed, Ruff/diff clean and
 wheel/sdist built; all new UI and extended-duration assertions are mocked/simulated.
 
 User now reports device can be left on Profile and subsequent job may fail, and
@@ -672,7 +672,7 @@ viewer/scroll target before changing gestures. Home lookup is mocked locally onl
 User supplied a hierarchy showing `com.instagram.android:id/clips_viewer_view_pager`
 as the scrollable Reels ViewPager. Worker waits for that viewer (or configured
 `post_feed_viewer`). User requested human pacing: random5–8s after opening first
-result, then random3–5s between items. Within approved300s trial, it stops cleanly
+result, then random5–7s between items. Within approved300s trial, it stops cleanly
 before expiry and records actual attempts, so max120 is a cap, not a guarantee.
 The 2026-11-19 operator run opened result and found viewer, but `mobile:
 swipeGesture` failed with `ValueError` after about3.9s (raw exception omitted from
@@ -697,7 +697,7 @@ test uses deterministic clock. Needs deploy/live confirmation.
 User reports gesture logs succeed but content sometimes does not advance, likely
 on low-spec Redroid. Applied an explicit press-drag-release path using viewer
 coordinates from80% to12% of height at `1000 px/s`, plus a separate1s settle wait
-after each gesture, before the existing randomized3–5s dwell.
+after each gesture, before the existing randomized5–7s dwell.
 but no stable visible post identity has yet been verified, so scroll count remains
 attempted gestures only. Add live deployment check; do not claim each swipe
 changed content based only on Appium command success.
@@ -715,3 +715,6 @@ recovery drag (80%-to-5%,700 px/s), counted inside the119 gesture ceiling. Wait 
 gestures. `content_transitions_detected` is an accessibility-signature signal,
 not proof of unique posts or decoded pixels. Local tests only; live verification
 is pending.
+User changed the inter-item human dwell to randomized5–7s (initial first-result
+dwell remains5–8s). Updated `_human_delay`, trial-budget reserve, docs, and
+range tests; still mock-tested only.

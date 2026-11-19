@@ -118,7 +118,7 @@ def _dwell(seconds: float, checkpoint: Callable[[], None]) -> None:
 def _human_delay(
     checkpoint: Callable[[], None], *, deadline: float | None, first: bool,
 ) -> bool:
-    lower, upper = (5.0, 8.0) if first else (3.0, 5.0)
+    lower, upper = (5.0, 8.0) if first else (5.0, 7.0)
     duration = random.uniform(lower, upper)
     started = time.monotonic()
     if deadline is not None and started + duration >= deadline - 2:
@@ -342,7 +342,7 @@ def search_open_first_post_and_scroll(
         # transition. Preserve enough trial time for both and the dwell.
         required_budget = (
             POST_FEED_TRANSITION_TIMEOUT_SECONDS * 2
-            + POST_FEED_TRANSITION_WAIT_SECONDS + 5 + 2
+            + POST_FEED_TRANSITION_WAIT_SECONDS + 7 + 2
         )
         if deadline is not None and time.monotonic() + required_budget >= deadline - 2:
             stop_reason = "trial_time_budget"

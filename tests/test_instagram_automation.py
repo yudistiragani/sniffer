@@ -228,6 +228,28 @@ def test_human_delay_does_not_sleep_with_negative_duration(monkeypatch):
     assert clock.sleeps == [0.1]
 
 
+@pytest.mark.parametrize(
+    ("first", "expected_range"),
+    [(True, (5.0, 8.0)), (False, (5.0, 7.0))],
+)
+def test_human_delay_uses_configured_random_range(monkeypatch, first, expected_range):
+    class Clock:
+        readings = iter([0.0, 100.0])
+
+        def monotonic(self):
+            return next(self.readings)
+
+    random_ranges = []
+    monkeypatch.setattr(automation, "time", Clock())
+    monkeypatch.setattr(
+        automation.random, "uniform",
+        lambda lower, upper: random_ranges.append((lower, upper)) or lower,
+    )
+
+    assert automation._human_delay(lambda: None, deadline=None, first=first)
+    assert random_ranges == [expected_range]
+
+
 def test_failure_log_identifies_clear_and_does_not_continue(settings, caplog):
     driver, _, field = search_driver()
     field.clear.side_effect = RuntimeError("private exception detail")

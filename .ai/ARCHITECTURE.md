@@ -36,7 +36,7 @@ then waits up to20s for foreground + one main PID, then attaches the approved
 native REPL trial (300s for keyword worker; standalone collect remains120s),
 starts each job by tapping Home regardless of the prior foreground tab, searches,
 and taps the first clickable result. It swipes the observed/configured post viewer
-with a5–8s initial dwell and randomized3–5s between up to119 follow-up gestures
+with a5–8s initial dwell and randomized5–7s between up to119 follow-up gestures
 (120 requested visits counting the first result); near the trial deadline it
 stops cleanly with the actual attempted count. Unique post transitions are not
 verified. Each normal press-drag-release runs from80% to12% of viewer height at

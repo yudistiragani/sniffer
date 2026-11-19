@@ -37,7 +37,7 @@
   was left on Profile; explicit selector candidates with bounded fail-closed lookup.
 - [x] Reels viewer XML identifies `clips_viewer_view_pager`; post feed gestures
   now target that view (configurable candidate list), not a generic screen region.
-  Add5–8s initial dwell and randomized3–5s between items; cleanly stop near the
+  Add5–8s initial dwell and randomized5–7s between items; cleanly stop near the
   approved300s trial deadline and report actual attempted visits.
 - [x] Operator log showed `ValueError` from `mobile: swipeGesture` after viewer
   discovery. Switched from `elementId` to explicit coordinates from viewer bounds;
@@ -53,6 +53,8 @@
   item changes using transient hash of accessible metadata; one retry uses a
   slower, longer80%-to-5% path at700 px/s after a10s timeout, counts toward119
   attempts, then stops if identity remains unchanged/unavailable.
+- [x] Increase randomized inter-item dwell from3–5s to5–7s and reserve the
+  updated maximum in trial-budget checks.
 - [ ] Live verify transition-signature behavior and recovery swipes; signature is
   not proof of unique posts or loaded image/video pixels.
 - [ ] Live verify home-tab selector and post-feed swipe; collect sanitized UI
@@ -190,7 +192,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **340 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **342 passed**, Ruff/diff checks clean, sdist/wheel build successful.
 Keyword-only worker tests cover loopback Beanstalk protocol, per-job trial cleanup,
 idle, failure/lease loss, replay marker, strict input, CLI opt-in and ten gestures.
 New tests include real loopback mitmweb API simulation, actual outgoing synthetic

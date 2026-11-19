@@ -28,7 +28,7 @@ Keyword must contain 1–200 characters after trimming. Empty/non-string keyword
 invalid JSON and extra fields (including job-supplied script paths, device IDs
 or scroll count) are invalid and buried. After Enter, the worker taps the first
 visible clickable result and performs at most119 upward swipes, with the existing
-first-result dwell of5–8s and randomized3–5s between follow-up swipes, for a
+first-result dwell of5–8s and randomized5–7s between follow-up swipes, for a
 ceiling of120 requested content visits including the first post. It targets the
 observed Reels `clips_viewer_view_pager` (or configured `post_feed_viewer`) rather
 than swiping the whole screen. Before each gesture, it reacquires the viewer and
