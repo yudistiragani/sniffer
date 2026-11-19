@@ -17,6 +17,12 @@
 - [ ] Confirm actual input Beanstalk host/port/tube and final producer schema.
 - [ ] User deploys and tests one reservation; verify job UI/cleanup and independently
   verify the proxy capture/output. Do not claim ACK proves proxy publication.
+- [x] Add opt-in keyword-worker Frida-server lifecycle: reuse reachable server;
+  refuse replacement if a server process already exists; start only configured
+  binary when absent; stop only worker-owned PID on graceful shutdown.
+- [ ] Operator configures exact verified Android `frida_server_path` and tests one
+  job/server lifecycle. Abrupt worker exit may leave server running; inspect it
+  before any manual cleanup.
 
 ### Earlier one-shot collect direction (superseded for keyword worker)
 
@@ -148,7 +154,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **323 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **331 passed**, Ruff/diff checks clean, sdist/wheel build successful.
 Keyword-only worker tests cover loopback Beanstalk protocol, per-job trial cleanup,
 idle, failure/lease loss, replay marker, strict input, CLI opt-in and ten gestures.
 New tests include real loopback mitmweb API simulation, actual outgoing synthetic

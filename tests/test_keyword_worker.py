@@ -362,8 +362,9 @@ def test_real_queue_protocol_keyword_worker_heartbeat_then_ack(settings, monkeyp
     thread.start()
     settings.beanstalk.port = server.server_address[1]
     settings.devices["android01"].frida_endpoint = "127.0.0.1:27052"
-    def fake(_settings, _device, item, *, lease, checkpoint):
+    def fake(_settings, _device, item, *, lease, checkpoint, frida_server):
         assert item.keyword == "prabowo" and item.scroll_count == 10
+        assert frida_server is not None
         assert "delete 42" not in commands
         checkpoint()
         return {"output": "synthetic"}

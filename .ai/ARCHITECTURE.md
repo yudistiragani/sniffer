@@ -22,7 +22,12 @@ independently captures and publishes. See `docs/keyword-worker.md`. New explicit
 `worker-keywords --targeted-trial` is separate from the legacy worker and collect.
 Temporary strict input `{keyword:string}`; no producer-supplied scripts/options.
 Queue-server instance ID + tube + numeric job ID form a stable local marker key.
-Worker holds device lease/queue heartbeat; each job opens an Appium session,
+Worker holds device lease/queue heartbeat; on a reserved job it checks the
+explicit Frida endpoint and, only if unreachable and no `frida-server` PID exists,
+starts the explicitly configured Android executable on loopback. A worker-owned
+server stays available across jobs; graceful shutdown SIGTERMs only its recorded
+PID after command-line identity verification. Existing server processes and ADB
+forwards are never changed. Each job opens an Appium session,
 if needed resolves the package launcher and sends ONE explicit am start (no -S),
 then waits up to20s
 for foreground + one main PID, then attaches approved native 120s REPL trial,

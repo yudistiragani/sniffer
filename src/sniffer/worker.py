@@ -84,7 +84,7 @@ def run_worker(
                 time.sleep(5)
 
 
-def process_keyword_reserved(client, raw, settings, device, lease, *, server_id):
+def process_keyword_reserved(client, raw, settings, device, lease, *, server_id, frida_server=None):
     """Pause on any execution error: no unattended repeat attach after crash/refusal."""
     from sniffer.keyword_executor import execute_keyword, queue_job_id
 
@@ -96,9 +96,10 @@ def process_keyword_reserved(client, raw, settings, device, lease, *, server_id)
             keyword=data.keyword, scroll_count=10,
         )
         with Heartbeat(client, raw, settings.beanstalk, stats["ttr"]) as heartbeat:
-            result = execute_keyword(
-                settings, device, job, lease=lease, checkpoint=heartbeat.check,
-            )
+            kwargs = {"lease": lease, "checkpoint": heartbeat.check}
+            if frida_server is not None:
+                kwargs["frida_server"] = frida_server
+            result = execute_keyword(settings, device, job, **kwargs)
             heartbeat.check()
         heartbeat.check()
     except (ValidationError, InvalidJob):
@@ -142,34 +143,38 @@ def run_keyword_worker(settings: Settings, device: str, *, targeted_trial: bool,
     if settings.platforms["instagram"].frida_scripts:
         raise ValueError("Keyword worker cannot run alongside configured Frida scripts.")
     with lock(settings, f"device-{device}") as lease:
-        while True:
-            try:
-                with connect(settings.beanstalk) as client:
-                    server_id = client.stats().get("id")
-                    # Completion markers must not collide between queue server instances.
-                    queue_job_id(server_id, settings.beanstalk.instagram_tube, 1)
-                    logger.info(
-                        "keyword worker watching tube=%s device=%s proxy=external",
-                        settings.beanstalk.instagram_tube, device,
-                    )
-                    while True:
-                        try:
-                            raw = client.reserve(timeout=settings.beanstalk.reserve_timeout)
-                        except greenstalk.TimedOutError:
+        from sniffer.integrations.frida_server import WorkerFridaServer
+
+        with WorkerFridaServer(target) as frida_server:
+            while True:
+                try:
+                    with connect(settings.beanstalk) as client:
+                        server_id = client.stats().get("id")
+                        # Completion markers must not collide between queue server instances.
+                        queue_job_id(server_id, settings.beanstalk.instagram_tube, 1)
+                        logger.info(
+                            "keyword worker watching tube=%s device=%s proxy=external",
+                            settings.beanstalk.instagram_tube, device,
+                        )
+                        while True:
+                            try:
+                                raw = client.reserve(timeout=settings.beanstalk.reserve_timeout)
+                            except greenstalk.TimedOutError:
+                                if once:
+                                    return
+                                continue
+                            state = process_keyword_reserved(
+                                client, raw, settings, device, lease, server_id=server_id,
+                                frida_server=frida_server,
+                            )
+                            if state == "stopped":
+                                raise RuntimeError(
+                                    "Keyword worker stopped after job failure; inspect before restarting."
+                                )
                             if once:
                                 return
-                            continue
-                        state = process_keyword_reserved(
-                            client, raw, settings, device, lease, server_id=server_id,
-                        )
-                        if state == "stopped":
-                            raise RuntimeError(
-                                "Keyword worker stopped after job failure; inspect before restarting."
-                            )
-                        if once:
-                            return
-            except (OSError, ConnectionError, greenstalk.Error, LeaseLost) as error:
-                if once or isinstance(error, LeaseLost):
-                    raise RuntimeError("Beanstalk connection/reservation failed; worker stopped.") from error
-                logger.warning("queue unavailable error=%s; reconnect in 5s", type(error).__name__)
-                time.sleep(5)
+                except (OSError, ConnectionError, greenstalk.Error, LeaseLost) as error:
+                    if once or isinstance(error, LeaseLost):
+                        raise RuntimeError("Beanstalk connection/reservation failed; worker stopped.") from error
+                    logger.warning("queue unavailable error=%s; reconnect in 5s", type(error).__name__)
+                    time.sleep(5)

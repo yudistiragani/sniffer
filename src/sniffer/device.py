@@ -43,7 +43,7 @@ def configure(settings: Settings, name: str, changes: dict) -> Device:
     safe_name(name)
     allowed = {
         "appium_url", "system_port", "proxy_host", "proxy_port",
-        "frida_endpoint", "frida_device_id",
+        "frida_endpoint", "frida_server_path", "frida_device_id",
     }
     if not changes or not set(changes).issubset(allowed):
         raise ValueError("Provide connection settings; immutable device identity cannot be changed.")

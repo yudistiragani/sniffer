@@ -616,3 +616,19 @@ foreground+single PID before attach as before. Actual am start is unverified on
 device; user must deploy and test; agent made no remote/device changes.
 Local verification after launcher replacement:323 tests passed, Ruff/diff clean,
 wheel/sdist built. Activity resolution/start tests are mocks, not live Android.
+
+User requested automatic Frida server startup for the keyword worker, in order
+server -> app init -> attach/trial -> search. Implemented WorkerFridaServer:
+endpoint first probed; reachable server reused; if unreachable, existing
+frida-server process blocks any attempt to replace it; only if none exists will
+the explicitly configured per-device `frida_server_path` be checked executable
+and started on Android loopback at endpoint port. Existing ADB forwards untouched.
+The worker keeps a server it started across jobs and, on graceful exit, SIGTERMs
+only its recorded PID after `/proc/PID/cmdline` identity check. Existing server
+is never stopped. Abrupt worker death can leave server running; next run adopts
+it and never claims ownership. Example path is the operator-reported
+`/data/local/tmp/sniffer-frida.1ortVs/frida-server`, but it must be confirmed in
+local config/on device. No device/server was accessed. Requires deployment and
+live test; server readiness, attach, login/session and proxy capture unverified.
+Local validation after lifecycle changes:331 tests passed, Ruff/diff clean,
+wheel/sdist built; lifecycle tests use mocks only.

@@ -82,7 +82,9 @@ def queue_job_id(server_id: str, tube: str, job_id: int) -> str:
     return "queue-" + hashlib.sha256(identity).hexdigest()
 
 
-def execute_keyword(settings, device_name, job: SearchJob, *, lease, checkpoint):
+def execute_keyword(
+    settings, device_name, job: SearchJob, *, lease, checkpoint, frida_server=None,
+):
     """One accepted reservation; caller owns the device lease and queue heartbeat."""
     device = resolve(settings, device_name)
     if not device.frida_endpoint:
@@ -106,6 +108,9 @@ def execute_keyword(settings, device_name, job: SearchJob, *, lease, checkpoint)
         adb = ADB(device.adb_serial)
         adb.ready(connect=True)
         adb.require_package(settings.platforms["instagram"].package)
+        phase = "frida_server"
+        if frida_server is not None:
+            frida_server.ensure_ready(checkpoint)
         output = new_session(
             settings, "instagram", device_name, job_id=job.job_id, keyword=job.keyword,
             capture="external_proxy_unverified", targeted_trial_seconds=120,

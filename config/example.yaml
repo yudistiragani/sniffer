@@ -11,7 +11,11 @@ devices:
     system_port: 8201
     proxy_host: "127.0.0.1"
     proxy_port: 8081
-    # frida_endpoint: "127.0.0.1:27042"  # explicit, reachable frida-server
+    # Explicit host-side adb-forward endpoint; worker never alters forwards.
+    # frida_endpoint: "127.0.0.1:27052"
+    # Optional exact, previously verified Android binary for keyword-worker startup.
+    # Used only if no Frida server process exists; worker never replaces an existing one.
+    # frida_server_path: "/data/local/tmp/sniffer-frida.1ortVs/frida-server"
   android02:
     adb_serial: "127.0.0.1:5556"
     container: android02

@@ -42,13 +42,24 @@ network and authorized queue access.
 
 After deploying this code and configuring the real input queue, set android01's
 existing `frida_endpoint` (known forward `127.0.0.1:27052`) in local YAML.
+To permit startup when the server process is absent, also configure
+`frida_server_path` to the exact previously verified executable path on Android,
+for example `/data/local/tmp/sniffer-frida.1ortVs/frida-server` only if that
+exact file still exists and is executable on the target.
 IG must already be logged in. If it is closed/backgrounded, the worker resolves
 the installed Instagram launcher activity, checks the component belongs to the
 Instagram package, then sends one `am start` without `-S`. It waits up to20s for foreground plus exactly
-one main PID. If already foreground, it sends no launch command. The existing Appium
-server, Android proxy configuration, CA, Frida server and forward must already
-be working. No other worker, Appium job, Frida observer/trial, or manual STF
-interaction on the device may run at the same time.
+one main PID. If already foreground, it sends no launch command. Appium, Android
+proxy configuration and CA remain operator-managed. The worker never changes the
+ADB forward. On a job it first checks the Frida endpoint; if reachable, it uses
+that server and never stops it. If unreachable, an existing `frida-server` process
+blocks any replacement. Only when no process exists does it start the configured
+binary on Android loopback at the endpoint port. That server stays available
+across jobs, then the worker sends SIGTERM only to its recorded PID on graceful
+shutdown, after verifying that PID's command line still names the configured
+binary. A crash can leave a worker-started server behind; the next run treats it
+as existing and does not assume ownership. Do not run another worker, Appium job,
+Frida observer/trial or manual STF interaction on the device.
 
 For an operator-supervised first job use:
 
@@ -65,13 +76,15 @@ processes jobs serially. **No Frida trial is attached while waiting.**
 `--targeted-trial` is required; the legacy `sniffer worker instagram` is
 unchanged and does not silently activate this TLS change.
 
-The trial runs through the official pinned Frida REPL, attaches only to one
+Per job, the order is: confirm/start Frida server, open Instagram if necessary,
+verify foreground and one main PID, then attach the official pinned Frida REPL.
+The trial attaches only to one
 already-running main PID in native realm, disables auto-reload, and waits for
 `fb_trial.ready`. The existing exact IG build/ABI, host, original system trust
 and typed-pinning-exception guards remain. Its internal deadline is120 seconds;
 the wrapper checks a conservative deadline during automation. It unloads on
-success/failure and never stops the existing frida-server. Existing Appium and
-Frida setup may time out or fail on the live device; local tests are simulations.
+success/failure and never stops a pre-existing Frida server. Server lifecycle
+tests are local simulations, not live device verification.
 No proxy or result queue status is verified by the worker.
 The earlier `monkey` launch failed on the user's emulator with a physical-key
 message; `cmd package resolve-activity` identified the launcher but `am start`

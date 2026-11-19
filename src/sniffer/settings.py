@@ -28,6 +28,7 @@ class Device(Model):
     proxy_host: str = "127.0.0.1"
     proxy_port: int = Field(default=8081, ge=1024, le=65535)
     frida_endpoint: str | None = None
+    frida_server_path: str | None = Field(default=None, pattern=r"^/[A-Za-z0-9._/-]+$")
     frida_device_id: str | None = None
 
 
