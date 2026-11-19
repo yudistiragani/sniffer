@@ -658,7 +658,7 @@ schema remains keyword-only. Implemented worker-only 300s REPL/JS limit and
 marks unique-content count unverified because Appium currently has no stable
 post-transition detector. Tests use mocked Appium/Frida; live first-result
 selector/navigation and proxy capture still need operator verification.
-Local validation after content-feed change:337 tests passed, Ruff/diff clean and
+Local validation after content-feed change:338 tests passed, Ruff/diff clean and
 wheel/sdist built; all new UI and extended-duration assertions are mocked/simulated.
 
 User now reports device can be left on Profile and subsequent job may fail, and
@@ -686,3 +686,11 @@ Added stage-specific safe log labels (`post_feed.viewer.find.N`,
 `post_feed.viewer.bounds.N`, `post_feed.gesture.N`) to localize future errors
 without logging arbitrary exception text or UI content. No live device actions
 were performed while applying this change.
+Latest operator log shows `post_feed.gesture.3 status=END`, followed ~3.3s later
+by outer `post_feed.scroll.3 status=FAILED error_type=ValueError`; therefore the
+selector and gesture dispatch both succeeded and failure happened during the
+3–5s inter-item dwell. Root cause identified in `_human_delay`: it checked elapsed
+time, then recomputed remaining time for `time.sleep`; crossing the deadline
+between those calls could pass a negative value and raise `ValueError`. Changed
+it to compute remaining once per iteration and break when nonpositive. Regression
+test uses deterministic clock. Needs deploy/live confirmation.

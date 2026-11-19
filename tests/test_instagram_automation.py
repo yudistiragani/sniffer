@@ -129,6 +129,30 @@ def test_keyword_flow_respects_trial_budget_and_finishes_partial_visit(settings,
     assert result["stop_reason"] == "trial_time_budget"
 
 
+def test_human_delay_does_not_sleep_with_negative_duration(monkeypatch):
+    class Clock:
+        readings = iter([0.0, 0.1, 0.25])
+        sleeps = []
+
+        def monotonic(self):
+            return next(self.readings)
+
+        def sleep(self, seconds):
+            self.sleeps.append(seconds)
+            assert seconds >= 0
+
+    clock = Clock()
+    monkeypatch.setattr(automation, "time", clock)
+    monkeypatch.setattr(automation.random, "uniform", lambda *_: 0.2)
+    checkpoints = []
+
+    assert automation._human_delay(
+        lambda: checkpoints.append("check"), deadline=None, first=False,
+    )
+    assert checkpoints == ["check", "check"]
+    assert clock.sleeps == [0.1]
+
+
 def test_failure_log_identifies_clear_and_does_not_continue(settings, caplog):
     driver, _, field = search_driver()
     field.clear.side_effect = RuntimeError("private exception detail")

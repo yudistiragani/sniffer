@@ -45,6 +45,9 @@
 - [x] Follow-up run completed two coordinate swipes; third failed. Viewer and its
   bounds are now reacquired before every swipe, with separate safe log steps for
   viewer lookup, bounds, and gesture dispatch to localize any next failure.
+- [x] Latest log shows gesture #3 ended before `post_feed.scroll.3` failed after
+  the randomized dwell. Fixed a timing race where `time.sleep()` could receive a
+  negative remaining duration at the delay boundary; added deterministic test.
 - [ ] Live verify home-tab selector and post-feed swipe; collect sanitized UI
   hierarchy after opened first post if next-content swipe still fails.
 - [ ] Validate first-result click and post-feed swipe behavior on live IG; verify
@@ -180,7 +183,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **337 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **338 passed**, Ruff/diff checks clean, sdist/wheel build successful.
 Keyword-only worker tests cover loopback Beanstalk protocol, per-job trial cleanup,
 idle, failure/lease loss, replay marker, strict input, CLI opt-in and ten gestures.
 New tests include real loopback mitmweb API simulation, actual outgoing synthetic

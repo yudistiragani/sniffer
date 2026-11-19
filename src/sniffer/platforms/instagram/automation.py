@@ -111,9 +111,12 @@ def _human_delay(
     started = time.monotonic()
     if deadline is not None and started + duration >= deadline - 2:
         return False
-    while time.monotonic() - started < duration:
+    while True:
+        remaining = duration - (time.monotonic() - started)
+        if remaining <= 0:
+            break
         checkpoint()
-        time.sleep(min(0.2, duration - (time.monotonic() - started)))
+        time.sleep(min(0.2, remaining))
     checkpoint()
     return True
 
