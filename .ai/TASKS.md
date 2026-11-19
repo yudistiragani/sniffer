@@ -48,8 +48,12 @@
 - [x] Latest log shows gesture #3 ended before `post_feed.scroll.3` failed after
   the randomized dwell. Fixed a timing race where `time.sleep()` could receive a
   negative remaining duration at the delay boundary; added deterministic test.
-- [ ] Slow explicit viewer swipe to1500 px/s and add1s post-gesture settle wait;
-  local test asserts both. Live content transition remains unverified.
+- [x] Slow explicit viewer swipe to1500 px/s and add1s post-gesture settle wait;
+  local tests assert both. Detect item changes using a transient hash of
+  accessible metadata; one retry uses800 px/s and90% travel after a10s timeout,
+  counts toward119 attempts, then stops if identity remains unchanged/unavailable.
+- [ ] Live verify transition-signature behavior and recovery swipes; signature is
+  not proof of unique posts or loaded image/video pixels.
 - [ ] Live verify home-tab selector and post-feed swipe; collect sanitized UI
   hierarchy after opened first post if next-content swipe still fails.
 - [ ] Validate first-result click and post-feed swipe behavior on live IG; verify
@@ -185,7 +189,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **338 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **340 passed**, Ruff/diff checks clean, sdist/wheel build successful.
 Keyword-only worker tests cover loopback Beanstalk protocol, per-job trial cleanup,
 idle, failure/lease loss, replay marker, strict input, CLI opt-in and ten gestures.
 New tests include real loopback mitmweb API simulation, actual outgoing synthetic

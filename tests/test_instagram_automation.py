@@ -79,6 +79,11 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
     monkeypatch.setattr(
         automation, "_dwell", lambda seconds, _checkpoint: transition_waits.append(seconds),
     )
+    monkeypatch.setattr(automation, "_post_identity_fingerprint", lambda _source: "baseline")
+    monkeypatch.setattr(
+        automation, "_wait_for_post_transition",
+        lambda *_args, **_kwargs: ("changed", "next-item"),
+    )
     driver.execute_script.return_value = None
 
     result = automation.search_open_first_post_and_scroll(
@@ -108,8 +113,69 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
         "content_visits_requested": 120,
         "content_visits_verified": False,
         "scrolls": 119,
+        "recovery_swipes": 0,
+        "content_transitions_detected": 119,
         "stop_reason": "content_limit",
     }
+
+
+def test_unchanged_item_gets_one_slow_wide_recovery_swipe(settings, monkeypatch):
+    driver, _, _ = search_driver()
+    results = driver.find_elements.side_effect(
+        "id", "com.instagram.android:id/recycler_view"
+    )[0]
+    first = MagicMock()
+    first.is_displayed.return_value = True
+    results.find_elements.return_value = [first]
+    monkeypatch.setattr(automation, "_human_delay", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(automation, "_dwell", lambda *_args: None)
+    monkeypatch.setattr(automation, "_post_identity_fingerprint", lambda _source: "same")
+    transition_results = iter([
+        ("unchanged", "same"),
+        ("changed", "next"),
+        ("unavailable", None),
+    ])
+    monkeypatch.setattr(
+        automation, "_wait_for_post_transition",
+        lambda *_args, **_kwargs: next(transition_results),
+    )
+
+    result = automation.search_open_first_post_and_scroll(
+        driver, settings.platforms["instagram"],
+        SearchJob(job_id="recovery-flow", keyword="private-keyword", scroll_count=119),
+        lambda: None,
+    )
+
+    gestures = [call.args[1] for call in driver.execute_script.call_args_list]
+    assert len(gestures) == 3
+    assert gestures[0]["speed"] == automation.POST_FEED_SWIPE_SPEED_PX_PER_SECOND
+    assert gestures[0]["percent"] == 0.75
+    assert gestures[1]["speed"] == automation.POST_FEED_RECOVERY_SWIPE_SPEED_PX_PER_SECOND
+    assert gestures[1]["percent"] == automation.POST_FEED_RECOVERY_SWIPE_PERCENT
+    assert result["scrolls"] == 3
+    assert result["recovery_swipes"] == 1
+    assert result["content_transitions_detected"] == 1
+    assert result["content_visits_requested"] == 2
+    assert result["stop_reason"] == "transition_unverified"
+
+
+def test_post_identity_fingerprint_hashes_content_without_exposing_it():
+    source_a = (
+        '<hierarchy><node resource-id="com.instagram.android:id/clips_media_component" '
+        'content-desc="Reel by private-author"><node '
+        'resource-id="com.instagram.android:id/clips_author_username" '
+        'text="private-author"/><node '
+        'resource-id="com.instagram.android:id/clips_caption_component">'
+        '<node content-desc="private caption"/></node></node></hierarchy>'
+    )
+    source_b = source_a.replace("private-author", "other-author")
+
+    fingerprint_a = automation._post_identity_fingerprint(source_a)
+    fingerprint_b = automation._post_identity_fingerprint(source_b)
+
+    assert fingerprint_a and fingerprint_b and fingerprint_a != fingerprint_b
+    assert "private-author" not in fingerprint_a
+    assert "private caption" not in fingerprint_a
 
 
 def test_keyword_flow_respects_trial_budget_and_finishes_partial_visit(settings, monkeypatch):

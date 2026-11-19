@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import random
 import time
 from collections.abc import Callable
+from xml.etree import ElementTree
 
 from sniffer.automation.gestures import scroll_up
 from sniffer.jobs import KEYWORD_CONTENT_LIMIT, KEYWORD_POST_SCROLLS, SearchJob
@@ -14,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 POST_FEED_SWIPE_SPEED_PX_PER_SECOND = 1500
 POST_FEED_TRANSITION_WAIT_SECONDS = 1.0
+POST_FEED_TRANSITION_TIMEOUT_SECONDS = 10.0
+POST_FEED_TRANSITION_POLL_SECONDS = 1.0
+POST_FEED_RECOVERY_SWIPE_SPEED_PX_PER_SECOND = 800
+POST_FEED_RECOVERY_SWIPE_PERCENT = 0.9
 
 
 def _step(name, action, checkpoint):
@@ -137,7 +144,11 @@ def _viewer_bounds(viewer) -> dict[str, int]:
     return bounds
 
 
-def _swipe_viewer_up(driver, bounds: dict[str, int]) -> None:
+def _swipe_viewer_up(
+    driver, bounds: dict[str, int], *,
+    speed: int = POST_FEED_SWIPE_SPEED_PX_PER_SECOND,
+    percent: float = 0.75,
+) -> None:
     """Swipe within the selected viewer bounds, avoiding Appium elementId parsing."""
     width = bounds["width"]
     height = bounds["height"]
@@ -149,9 +160,91 @@ def _swipe_viewer_up(driver, bounds: dict[str, int]) -> None:
         "width": width,
         "height": height,
         "direction": "up",
-        "percent": 0.75,
-        "speed": POST_FEED_SWIPE_SPEED_PX_PER_SECOND,
+        "percent": percent,
+        "speed": speed,
     })
+
+
+def _post_identity_fingerprint(page_source) -> str | None:
+    """Hash accessible identity signals locally; never log or persist raw UI text."""
+    if not isinstance(page_source, str):
+        return None
+    try:
+        root = ElementTree.fromstring(page_source)
+    except (ElementTree.ParseError, ValueError):
+        return None
+
+    media = next(
+        (
+            node for node in root.iter()
+            if node.get("resource-id") == "com.instagram.android:id/clips_media_component"
+        ),
+        None,
+    )
+    if media is None:
+        return None
+
+    author_values: list[str] = []
+    caption_values: list[str] = []
+    media_kinds: set[str] = set()
+    for node in media.iter():
+        resource_id = node.get("resource-id", "")
+        if resource_id.endswith(":id/clips_author_username"):
+            author_values.extend(filter(None, (node.get("text"), node.get("content-desc"))))
+        elif resource_id.endswith(":id/clips_caption_component"):
+            for child in node.iter():
+                caption_values.extend(
+                    filter(None, (child.get("text"), child.get("content-desc")))
+                )
+        if resource_id.endswith((
+            ":id/clips_single_image_media_content",
+            ":id/clips_video_container",
+            ":id/clips_viewer_video_layout",
+        )):
+            media_kinds.add(resource_id.rsplit("/", 1)[-1])
+
+    identity = {
+        "media_description": media.get("content-desc", ""),
+        "authors": author_values,
+        "captions": caption_values,
+        "media_kinds": sorted(media_kinds),
+    }
+    # If no content-specific accessibility signal exists, don't pretend the
+    # generic viewer structure can verify that the active item changed.
+    if not any((
+        identity["media_description"], author_values, caption_values,
+    )):
+        return None
+    encoded = json.dumps(identity, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _wait_for_post_transition(
+    driver, previous: str | None, checkpoint: Callable[[], None], *,
+    deadline: float | None,
+) -> tuple[str, str | None]:
+    """Wait for accessible post identity to change; never expose identity in logs."""
+    if previous is None:
+        return "unavailable", None
+    started = time.monotonic()
+    stop_at = started + POST_FEED_TRANSITION_TIMEOUT_SECONDS
+    if deadline is not None:
+        stop_at = min(stop_at, deadline - 2)
+    while True:
+        checkpoint()
+        current = _post_identity_fingerprint(driver.page_source)
+        if current is None:
+            return "unavailable", None
+        if current != previous:
+            return "changed", current
+        remaining = stop_at - time.monotonic()
+        if remaining <= 0:
+            return (
+                "trial_time_budget" if deadline is not None and stop_at < started +
+                POST_FEED_TRANSITION_TIMEOUT_SECONDS else "unchanged",
+                previous,
+            )
+        time.sleep(min(POST_FEED_TRANSITION_POLL_SECONDS, remaining))
 
 
 def search(driver, config: Platform, job: SearchJob, checkpoint: Callable[[], None]) -> dict:
@@ -232,13 +325,27 @@ def search_open_first_post_and_scroll(
     # Use the selected viewer's bounds. Some Appium server versions reject an
     # elementId for mobile: swipeGesture with ValueError; explicit bounds avoid it.
     scrolls = 0
+    recovery_swipes = 0
+    transitions_detected = 0
     stop_reason = "content_limit"
+    current_identity = _step(
+        "post_feed.identity.baseline",
+        lambda: _post_identity_fingerprint(driver.page_source),
+        checkpoint,
+    )
     if not _human_delay(checkpoint, deadline=deadline, first=True):
         stop_reason = "trial_time_budget"
-    for index in range(KEYWORD_POST_SCROLLS if stop_reason == "content_limit" else 0):
-        if deadline is not None and time.monotonic() + 8 >= deadline - 2:
+    while scrolls < KEYWORD_POST_SCROLLS and stop_reason == "content_limit":
+        # A primary swipe plus one bounded recovery may each wait for the
+        # transition. Preserve enough trial time for both and the dwell.
+        required_budget = (
+            POST_FEED_TRANSITION_TIMEOUT_SECONDS * 2
+            + POST_FEED_TRANSITION_WAIT_SECONDS + 5 + 2
+        )
+        if deadline is not None and time.monotonic() + required_budget >= deadline - 2:
             stop_reason = "trial_time_budget"
             break
+        index = scrolls
         checkpoint()
         started = time.monotonic()
         logger.info("IG step=post_feed.scroll.%s status=START", index + 1)
@@ -264,13 +371,89 @@ def search_open_first_post_and_scroll(
                 checkpoint,
             )
             scrolls += 1
-            _step(
-                f"post_feed.transition_wait.{index + 1}",
-                lambda: _dwell(POST_FEED_TRANSITION_WAIT_SECONDS, checkpoint),
+            transition_status, observed_identity = _step(
+                f"post_feed.transition_check.{index + 1}",
+                lambda previous_identity=current_identity: _wait_for_post_transition(
+                    driver, previous_identity, checkpoint, deadline=deadline,
+                ),
                 checkpoint,
             )
-            if not _human_delay(checkpoint, deadline=deadline, first=False):
+            logger.info(
+                "IG step=post_feed.transition_check.%s outcome=%s",
+                index + 1, transition_status.upper(),
+            )
+            if transition_status == "changed":
+                transitions_detected += 1
+                current_identity = observed_identity
+            elif transition_status == "trial_time_budget":
                 stop_reason = "trial_time_budget"
+            elif transition_status == "unchanged":
+                if scrolls >= KEYWORD_POST_SCROLLS:
+                    stop_reason = "content_stalled"
+                else:
+                    logger.warning(
+                        "IG step=post_feed.recovery.%s status=START reason=identity_unchanged",
+                        recovery_swipes + 1,
+                    )
+                    recovery_viewer = _step(
+                        f"post_feed.recovery.viewer.find.{recovery_swipes + 1}",
+                        lambda: wait_for(
+                            driver, viewer_candidates, name="post_feed_viewer",
+                            checkpoint=checkpoint,
+                        ),
+                        checkpoint,
+                    )
+                    recovery_bounds = _step(
+                        f"post_feed.recovery.viewer.bounds.{recovery_swipes + 1}",
+                        lambda element=recovery_viewer: _viewer_bounds(element),
+                        checkpoint,
+                    )
+                    _step(
+                        f"post_feed.recovery.gesture.{recovery_swipes + 1}",
+                        lambda current_bounds=recovery_bounds: _swipe_viewer_up(
+                            driver, current_bounds,
+                            speed=POST_FEED_RECOVERY_SWIPE_SPEED_PX_PER_SECOND,
+                            percent=POST_FEED_RECOVERY_SWIPE_PERCENT,
+                        ),
+                        checkpoint,
+                    )
+                    scrolls += 1
+                    recovery_swipes += 1
+                    recovery_status, recovery_identity = _step(
+                        f"post_feed.recovery.transition_check.{recovery_swipes}",
+                        lambda previous_identity=current_identity: _wait_for_post_transition(
+                            driver, previous_identity, checkpoint, deadline=deadline,
+                        ),
+                        checkpoint,
+                    )
+                    logger.info(
+                        "IG step=post_feed.recovery.transition_check.%s outcome=%s",
+                        recovery_swipes, recovery_status.upper(),
+                    )
+                    if recovery_status == "changed":
+                        transitions_detected += 1
+                        current_identity = recovery_identity
+                    elif recovery_status == "trial_time_budget":
+                        stop_reason = "trial_time_budget"
+                    elif recovery_status in {"unchanged", "unavailable"}:
+                        stop_reason = "content_stalled"
+                    logger.warning(
+                        "IG step=post_feed.recovery.%s status=END outcome=%s",
+                        recovery_swipes, recovery_status.upper(),
+                    )
+            elif transition_status == "unavailable":
+                # Avoid another gesture when we cannot tell whether the first one
+                # changed content; continuing could silently skip an item.
+                stop_reason = "transition_unverified"
+
+            if stop_reason == "content_limit" and transitions_detected:
+                _step(
+                    f"post_feed.transition_wait.{index + 1}",
+                    lambda: _dwell(POST_FEED_TRANSITION_WAIT_SECONDS, checkpoint),
+                    checkpoint,
+                )
+                if not _human_delay(checkpoint, deadline=deadline, first=False):
+                    stop_reason = "trial_time_budget"
         except Exception as error:
             logger.error(
                 "IG step=post_feed.scroll.%s status=FAILED error_type=%s",
@@ -281,15 +464,15 @@ def search_open_first_post_and_scroll(
             "IG step=post_feed.scroll.%s status=END duration=%.2fs",
             index + 1, time.monotonic() - started,
         )
-        if stop_reason == "trial_time_budget":
-            break
     checkpoint()
     return {
         "action": "search_open_first_post_and_scroll",
         "first_result_tapped": True,
         "content_visit_limit": KEYWORD_CONTENT_LIMIT,
-        "content_visits_requested": min(KEYWORD_CONTENT_LIMIT, 1 + scrolls),
+        "content_visits_requested": min(KEYWORD_CONTENT_LIMIT, 1 + transitions_detected),
         "content_visits_verified": False,
         "scrolls": scrolls,
+        "recovery_swipes": recovery_swipes,
+        "content_transitions_detected": transitions_detected,
         "stop_reason": stop_reason,
     }

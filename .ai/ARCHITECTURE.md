@@ -40,7 +40,11 @@ with a5–8s initial dwell and randomized3–5s between up to119 follow-up gestu
 (120 requested visits counting the first result); near the trial deadline it
 stops cleanly with the actual attempted count. Unique post transitions are not
 verified. Each swipe uses explicit1500 px/s speed and waits1s for transition
-settling before the human dwell. It then settles3s and unloads
+settling before the human dwell. It compares a transient hash of accessible
+active-item metadata; if unchanged for10s, it makes at most one recovery swipe
+(800 px/s,90% travel), counted toward the119-swipe cap. If identity remains
+unchanged or unavailable, it stops rather than swiping blindly. This does not
+verify unique posts or decoded media pixels. It then settles3s and unloads
 trial/cleans Appium, checkpoints lease, persists completion, then ACKs. While idle
 there is no attached trial. Runtime error releases/buries then stops the worker;
 lease loss never ACKs. No local recorder/mitmweb access/outgoing results. ACK is UI

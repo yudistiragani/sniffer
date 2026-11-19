@@ -36,9 +36,15 @@ reads fresh Appium bounds because Instagram may replace the pager after a
 transition. Gesture coordinates come from those bounds rather than its element
 ID, to avoid server-side `swipeGesture` ID validation errors. Each swipe uses
 explicit `1500 px/s` speed, followed by a1s transition-settle wait and the
-randomized human dwell. Appium success only confirms the gesture command ran; it
-does not prove that Instagram changed posts. The existing300s trial is a hard
-job bound; if
+randomized human dwell. It compares an ephemeral hash of accessible post
+metadata (never logged or persisted) to detect whether the visible item changed.
+If it remains unchanged for up to10s, it sends at most one recovery swipe at
+`800 px/s` with `90%` travel; that gesture counts against the119-swipe cap. If
+identity remains unchanged or cannot be checked, the worker stops rather than
+swiping blindly. These metadata comparisons do not prove unique posts or that
+the image/video pixels finished loading. Appium success only confirms the
+gesture command ran; it does not prove that Instagram changed posts. The
+existing300s trial is a hard job bound; if
 time is nearly exhausted, the worker stops cleanly with fewer visits. The UI does
 not expose a verified unique-post counter here: swipes/visits are attempts, not
 proof that120 distinct posts loaded. The producer contract and tube name remain

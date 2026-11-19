@@ -658,7 +658,7 @@ schema remains keyword-only. Implemented worker-only 300s REPL/JS limit and
 marks unique-content count unverified because Appium currently has no stable
 post-transition detector. Tests use mocked Appium/Frida; live first-result
 selector/navigation and proxy capture still need operator verification.
-Local validation after content-feed change:338 tests passed, Ruff/diff clean and
+Local validation after content-feed change:340 tests passed, Ruff/diff clean and
 wheel/sdist built; all new UI and extended-duration assertions are mocked/simulated.
 
 User now reports device can be left on Profile and subsequent job may fail, and
@@ -701,3 +701,17 @@ existing randomized3–5s dwell. This reduces speed / gives UI transition time,
 but no stable visible post identity has yet been verified, so scroll count remains
 attempted gestures only. Add live deployment check; do not claim each swipe
 changed content based only on Appium command success.
+User supplied blank/ready hierarchies and approved one bounded recovery retry,
+requesting that recovery swipe be slower and longer. Both trees retain the same
+scrollable `clips_viewer_view_pager`; the blank snapshot has
+`clips_single_image_media_content` while the ready snapshot has
+`clips_video_container` / `clips_viewer_video_layout`, so media type differs and
+there is no universal accessible pixel-loading indicator. Implemented an
+ephemeral SHA256 over accessible active-media metadata (author, caption,
+media-desc/type) without logging or persisting source text. After each normal
+swipe, poll up to10s for fingerprint change; if unchanged, exactly one recovery
+swipe at800 px/s and90% travel, counted inside the119 gesture ceiling. Wait up to
+10s again; if unchanged or identity cannot be checked, stop without more blind
+gestures. `content_transitions_detected` is an accessibility-signature signal,
+not proof of unique posts or decoded pixels. Local tests only; live verification
+is pending.
