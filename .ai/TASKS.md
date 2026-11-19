@@ -48,10 +48,11 @@
 - [x] Latest log shows gesture #3 ended before `post_feed.scroll.3` failed after
   the randomized dwell. Fixed a timing race where `time.sleep()` could receive a
   negative remaining duration at the delay boundary; added deterministic test.
-- [x] Slow explicit viewer swipe to1500 px/s and add1s post-gesture settle wait;
-  local tests assert both. Detect item changes using a transient hash of
-  accessible metadata; one retry uses800 px/s and90% travel after a10s timeout,
-  counts toward119 attempts, then stops if identity remains unchanged/unavailable.
+- [x] Use an explicit press-drag-release path from80% to12% viewer height at
+  1000 px/s and add1s settle wait; local tests assert coordinates/speed. Detect
+  item changes using transient hash of accessible metadata; one retry uses a
+  slower, longer80%-to-5% path at700 px/s after a10s timeout, counts toward119
+  attempts, then stops if identity remains unchanged/unavailable.
 - [ ] Live verify transition-signature behavior and recovery swipes; signature is
   not proof of unique posts or loaded image/video pixels.
 - [ ] Live verify home-tab selector and post-feed swipe; collect sanitized UI

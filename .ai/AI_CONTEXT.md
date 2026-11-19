@@ -695,9 +695,9 @@ between those calls could pass a negative value and raise `ValueError`. Changed
 it to compute remaining once per iteration and break when nonpositive. Regression
 test uses deterministic clock. Needs deploy/live confirmation.
 User reports gesture logs succeed but content sometimes does not advance, likely
-on low-spec Redroid. Applied an explicit `1500 px/s` swipe speed (rather than
-Appium default) and a separate1s settle wait after each gesture, before the
-existing randomized3–5s dwell. This reduces speed / gives UI transition time,
+on low-spec Redroid. Applied an explicit press-drag-release path using viewer
+coordinates from80% to12% of height at `1000 px/s`, plus a separate1s settle wait
+after each gesture, before the existing randomized3–5s dwell.
 but no stable visible post identity has yet been verified, so scroll count remains
 attempted gestures only. Add live deployment check; do not claim each swipe
 changed content based only on Appium command success.
@@ -709,8 +709,8 @@ scrollable `clips_viewer_view_pager`; the blank snapshot has
 there is no universal accessible pixel-loading indicator. Implemented an
 ephemeral SHA256 over accessible active-media metadata (author, caption,
 media-desc/type) without logging or persisting source text. After each normal
-swipe, poll up to10s for fingerprint change; if unchanged, exactly one recovery
-swipe at800 px/s and90% travel, counted inside the119 gesture ceiling. Wait up to
+drag, poll up to10s for fingerprint change; if unchanged, exactly one longer
+recovery drag (80%-to-5%,700 px/s), counted inside the119 gesture ceiling. Wait up to
 10s again; if unchanged or identity cannot be checked, stop without more blind
 gestures. `content_transitions_detected` is an accessibility-signature signal,
 not proof of unique posts or decoded pixels. Local tests only; live verification

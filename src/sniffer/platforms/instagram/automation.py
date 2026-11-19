@@ -15,12 +15,14 @@ from sniffer.settings import Platform
 
 logger = logging.getLogger(__name__)
 
-POST_FEED_SWIPE_SPEED_PX_PER_SECOND = 1500
+POST_FEED_DRAG_SPEED_PX_PER_SECOND = 1000
+POST_FEED_DRAG_START_Y_FRACTION = 0.80
+POST_FEED_DRAG_END_Y_FRACTION = 0.12
 POST_FEED_TRANSITION_WAIT_SECONDS = 1.0
 POST_FEED_TRANSITION_TIMEOUT_SECONDS = 10.0
 POST_FEED_TRANSITION_POLL_SECONDS = 1.0
-POST_FEED_RECOVERY_SWIPE_SPEED_PX_PER_SECOND = 800
-POST_FEED_RECOVERY_SWIPE_PERCENT = 0.9
+POST_FEED_RECOVERY_DRAG_SPEED_PX_PER_SECOND = 700
+POST_FEED_RECOVERY_DRAG_END_Y_FRACTION = 0.05
 
 
 def _step(name, action, checkpoint):
@@ -144,23 +146,23 @@ def _viewer_bounds(viewer) -> dict[str, int]:
     return bounds
 
 
-def _swipe_viewer_up(
+def _drag_viewer_up(
     driver, bounds: dict[str, int], *,
-    speed: int = POST_FEED_SWIPE_SPEED_PX_PER_SECOND,
-    percent: float = 0.75,
+    speed: int = POST_FEED_DRAG_SPEED_PX_PER_SECOND,
+    end_y_fraction: float = POST_FEED_DRAG_END_Y_FRACTION,
 ) -> None:
-    """Swipe within the selected viewer bounds, avoiding Appium elementId parsing."""
-    width = bounds["width"]
-    height = bounds["height"]
-    if width <= 0 or height <= 0:
+    """Press-drag-release from near the item footer toward the top of the viewer."""
+    width, height = bounds["width"], bounds["height"]
+    if width <= 0 or height <= 0 or not 0 <= end_y_fraction < POST_FEED_DRAG_START_Y_FRACTION <= 1:
         raise RuntimeError("Instagram post viewer has invalid gesture bounds.")
-    driver.execute_script("mobile: swipeGesture", {
-        "left": bounds["left"],
-        "top": bounds["top"],
-        "width": width,
-        "height": height,
-        "direction": "up",
-        "percent": percent,
+    center_x = bounds["left"] + width // 2
+    start_y = bounds["top"] + int(height * POST_FEED_DRAG_START_Y_FRACTION)
+    end_y = bounds["top"] + int(height * end_y_fraction)
+    driver.execute_script("mobile: dragGesture", {
+        "startX": center_x,
+        "startY": start_y,
+        "endX": center_x,
+        "endY": end_y,
         "speed": speed,
     })
 
@@ -322,8 +324,8 @@ def search_open_first_post_and_scroll(
     _step("post_feed.viewer.find", lambda: wait_for(
         driver, viewer_candidates, name="post_feed_viewer", checkpoint=checkpoint,
     ), checkpoint)
-    # Use the selected viewer's bounds. Some Appium server versions reject an
-    # elementId for mobile: swipeGesture with ValueError; explicit bounds avoid it.
+    # Use absolute coordinates inside the selected viewer, avoiding element-id
+    # quirks and starting below most media overlays so the finger drags the page.
     scrolls = 0
     recovery_swipes = 0
     transitions_detected = 0
@@ -367,7 +369,9 @@ def search_open_first_post_and_scroll(
             )
             _step(
                 f"post_feed.gesture.{index + 1}",
-                lambda current_bounds=bounds: _swipe_viewer_up(driver, current_bounds),
+                lambda current_bounds=bounds: _drag_viewer_up(
+                    driver, current_bounds,
+                ),
                 checkpoint,
             )
             scrolls += 1
@@ -410,10 +414,10 @@ def search_open_first_post_and_scroll(
                     )
                     _step(
                         f"post_feed.recovery.gesture.{recovery_swipes + 1}",
-                        lambda current_bounds=recovery_bounds: _swipe_viewer_up(
+                        lambda current_bounds=recovery_bounds: _drag_viewer_up(
                             driver, current_bounds,
-                            speed=POST_FEED_RECOVERY_SWIPE_SPEED_PX_PER_SECOND,
-                            percent=POST_FEED_RECOVERY_SWIPE_PERCENT,
+                            speed=POST_FEED_RECOVERY_DRAG_SPEED_PX_PER_SECOND,
+                            end_y_fraction=POST_FEED_RECOVERY_DRAG_END_Y_FRACTION,
                         ),
                         checkpoint,
                     )

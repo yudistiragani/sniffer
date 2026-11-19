@@ -31,15 +31,16 @@ visible clickable result and performs at most119 upward swipes, with the existin
 first-result dwell of5–8s and randomized3–5s between follow-up swipes, for a
 ceiling of120 requested content visits including the first post. It targets the
 observed Reels `clips_viewer_view_pager` (or configured `post_feed_viewer`) rather
-than swiping the whole screen. Before each swipe, it reacquires the viewer and
+than swiping the whole screen. Before each gesture, it reacquires the viewer and
 reads fresh Appium bounds because Instagram may replace the pager after a
-transition. Gesture coordinates come from those bounds rather than its element
-ID, to avoid server-side `swipeGesture` ID validation errors. Each swipe uses
-explicit `1500 px/s` speed, followed by a1s transition-settle wait and the
+transition. It uses a press-drag-release from80% down the viewer (near, but above,
+the metadata row) to12% down at `1000 px/s`; coordinates come from those bounds.
+Each drag is followed by a1s transition-settle wait and the
 randomized human dwell. It compares an ephemeral hash of accessible post
 metadata (never logged or persisted) to detect whether the visible item changed.
-If it remains unchanged for up to10s, it sends at most one recovery swipe at
-`800 px/s` with `90%` travel; that gesture counts against the119-swipe cap. If
+If it remains unchanged for up to10s, it sends at most one recovery drag at
+`700 px/s`, from80% to5% of viewer height; that gesture counts against the
+119-gesture cap. If
 identity remains unchanged or cannot be checked, the worker stops rather than
 swiping blindly. These metadata comparisons do not prove unique posts or that
 the image/video pixels finished loading. Appium success only confirms the

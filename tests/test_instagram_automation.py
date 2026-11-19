@@ -97,10 +97,9 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
     driver._home_tab.click.assert_called_once()
     assert driver.execute_script.call_count == 119
     assert all(
-        call.args == ("mobile: swipeGesture", {
-            "left": 0, "top": 48, "width": 720, "height": 1016,
-            "direction": "up", "percent": 0.75,
-            "speed": automation.POST_FEED_SWIPE_SPEED_PX_PER_SECOND,
+        call.args == ("mobile: dragGesture", {
+            "startX": 360, "startY": 860, "endX": 360, "endY": 169,
+            "speed": automation.POST_FEED_DRAG_SPEED_PX_PER_SECOND,
         })
         for call in driver.execute_script.call_args_list
     )
@@ -148,10 +147,14 @@ def test_unchanged_item_gets_one_slow_wide_recovery_swipe(settings, monkeypatch)
 
     gestures = [call.args[1] for call in driver.execute_script.call_args_list]
     assert len(gestures) == 3
-    assert gestures[0]["speed"] == automation.POST_FEED_SWIPE_SPEED_PX_PER_SECOND
-    assert gestures[0]["percent"] == 0.75
-    assert gestures[1]["speed"] == automation.POST_FEED_RECOVERY_SWIPE_SPEED_PX_PER_SECOND
-    assert gestures[1]["percent"] == automation.POST_FEED_RECOVERY_SWIPE_PERCENT
+    assert gestures[0] == {
+        "startX": 360, "startY": 860, "endX": 360, "endY": 169,
+        "speed": automation.POST_FEED_DRAG_SPEED_PX_PER_SECOND,
+    }
+    assert gestures[1] == {
+        "startX": 360, "startY": 860, "endX": 360, "endY": 98,
+        "speed": automation.POST_FEED_RECOVERY_DRAG_SPEED_PX_PER_SECOND,
+    }
     assert result["scrolls"] == 3
     assert result["recovery_swipes"] == 1
     assert result["content_transitions_detected"] == 1
