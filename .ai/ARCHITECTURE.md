@@ -116,8 +116,9 @@ other bodies are metadata-only. Raw `.mitm` is opt-in and unredacted. Proxy CA/c
 is isolated in configurable `mitm_confdir`; no CA is installed on Android.
 That describes the CLI: the operator separately approved and manually added the
 remote proxy's verified CA on android01. See AI_CONTEXT.md for provenance and hash.
-Remote capture is external to the current executor; keep `--no-capture` when UI
-automation uses that remote proxy. Local proxy_host is a bind address, not a remote endpoint.
+The original search executor's capture is local; keep `--no-capture` when that UI
+command uses the remote proxy. The separately approved collect command below
+reads the remote mitmweb API instead. Local proxy_host is a bind address, not a remote endpoint.
 Session directories are created mode 0700 on POSIX. Job success with capture enabled
 requires at least one matching non-transport-error response. That alone does not
 prove semantic search extraction. The semantic flag requires at least one
@@ -152,6 +153,38 @@ operator-exported response body + minimal paired request metadata and an expecte
 keyword. It refuses an existing output directory and invents no HTTP status.
 This is base-package, file-only parsing, NOT remote mitmweb integration or job ACK.
 No TLS/CA/Frida/Android/APK changes or automatic API replay/pagination are involved.
+
+## Explicit ten-scroll collection and outgoing results
+
+collect.py is a separate one-shot orchestration path, not a default worker hook.
+Operator approved120s targeted native trial for this path,3 exact hosts with all
+existing trust/build guards. JS still defaults30s and accepts only30s/120s.
+TrialREPL uses pinned official REPL for Java17 bridge, one current PID/native realm,
+no auto-reload/spawn/retry/eternalize. Monotonic health deadline and script deadline
+bound the override; cleanup stops only its child. Foreground IG is required before
+and during UI actions. No activate_app/service/proxy/CA changes.
+
+RemoteCapture uses read-only GET /flows and GET /flows/{id}/request|response/
+content.data, compatible with inspected mitmweb11.0.2 source. Snapshots old IDs
+before controlled search; exact client IP + request keyword + API host/path/port/
+method + remote Date/time boundary + finished HTTP response/no replay. Different
+session-ID digests signal ambiguous concurrent searches. Detects baseline eviction.
+No raw credentials/headers/session values persisted. GET body/list sizes bounded;
+HTTPS verified or HTTP loopback tunnel only, no redirects. Web URL/client IP must
+be explicitly configured. This is not installing an addon or a new API service.
+
+Device and remote-origin/client locks are local-host only. Operator exclusivity
+is required on shared NAT/STF/other hosts. Ten gestures are not ten pages/guaranteed
+post count; no posts/failure prevents publishing. Successful UI/capture cleanup
+precedes outgoing sends. Parser completion stays distinct from HTTP completion.
+
+ResultsQueue settings/env are separate from input Beanstalk. results.py writes a
+bounded durable outbox of schema1 per-post envelopes before any put, checks
+configured/server max-job-size before pending puts and atomically saves each
+INSERTED receipt. Stable event_id permits consumer dedup after lost reply/crash
+(at-least-once, not exactly-once). Results prepare/publish operate saved capture
+only; no automation rerun, reserve/delete or input worker ACK changes.
+No live remote acceptance is implied by local HTTP/protocol/JS simulations.
 
 ## Infrastructure
 

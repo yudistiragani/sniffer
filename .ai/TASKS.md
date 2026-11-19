@@ -2,6 +2,23 @@
 
 ## Active priority (latest direction)
 
+- User now requests one automatic keyword search +10 scrolls + outgoing post
+  results, destination202.56.161.146:22400 / tube sniffer_instagram_result.
+  Approved keyword prabowo and explicit targeted trial up to120s.
+- [x] Implement opt-in one-shot collect CLI, read-only remote mitmweb API collector,
+  fixed120s official native REPL orchestration (default standalone remains30s),
+  foreground-only Appium, no restart/spawn/configured concurrent hooks.
+- [x] Implement separate outgoing results config, durable per-post outbox/receipts,
+  max-job-size checks, deterministic consumer dedup IDs and publish-only retry.
+  Existing input worker unchanged; no live production queue writes.
+- [ ] Obtain actual mitmweb WEB API URL and exact proxy-observed Android client IP.
+  Auth only privately if needed; require HTTPS or loopback tunnel, not proxy18919.
+- [ ] Operator deploy/configure, dry-run then one bounded collect/publish; verify
+  real remote framing/parsed post quality,10 gestures and target queue receipts.
+  Consumer processing/ACK, repeated-run stability remain separate acceptance.
+
+### Prior capture/parser milestones
+
 - User explicitly wants Instagram requests readable in remote mitmproxy NEXT,
   before Beanstalk testing. Do not mistake an Appium baseline for finished sniffing.
 - [x] User explicitly prepared Frida17.27.0 x86_64 server/loopback27052 forwarding;
@@ -82,10 +99,11 @@
 - [ ] Operator export decoded body + minimal paired metadata; validate offline
   summary/posts and inspect actual Content-Type/framing/final marker. No raw
   cookie/session/cursor/tracking/contact values in fixtures or shared logs.
-- [ ] Remote recorder deployment/output transport and job correlation.
+- [x] Prepared read-only remote mitmweb collector with baseline/IP/query/time
+  correlation; live URL/auth/client-IP/framing acceptance remains pending above.
 - Search HTTPS milestone is met; live parser output and remote integration are
   next. Other CDN scope remains unapproved; no repeated setup or blanket hooks.
-  Beanstalk acceptance and image/OS migrations remain deferred.
+  Beanstalk result publishing is now requested above; image/OS migrations remain deferred.
 
 ## Initial delivery
 
@@ -108,7 +126,9 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **240 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **283 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+New tests include real loopback mitmweb API simulation, actual outgoing synthetic
+Beanstalk protocol (use/stats/put only), outbox recovery and120s JS guard scenarios.
 Offline imports load no mitmproxy/Appium/Frida; new parser modules verified in wheel. Base-only
 installation was also exercised; the optional real-proxy test skips without capture extra.
 Observer JS is exercised under a Node-based simulated GumJS harness (Node optional

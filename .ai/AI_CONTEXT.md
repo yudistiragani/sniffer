@@ -481,3 +481,56 @@ clean, wheel/sdist built. New modules confirmed in wheel; offline imports do not
 load mitmproxy/Appium/Frida. Includes actual local HTTP proxy smoke, simulated
 recorder/executor and synthetic JSON-sequence/CLI tests, NOT remote IG parser
 acceptance. No dependencies/lockfile/TLS scripts changed and no deployment performed.
+
+## Approved one-shot automation and outgoing results (2026-11-19)
+
+User now requests search +10 scrolls and publishing data to Beanstalk
+202.56.161.146:22400. Form supplied tube sniffer_instagram_result, keyword prabowo,
+and explicitly approved up-to120second targeted trial. Capture/format choices were
+not filled; implementation states one-post-per-message recommendation and chooses
+read-only existing mitmweb API rather than installing/restarting an addon/service.
+No backend/API service or queue-driven persistent trial was introduced.
+
+New explicit CLI automation instagram collect --device android01 --keyword ...
+--targeted-trial --publish performs one controlled run only. Requires configured
+remote WEB API URL (not proxy18919), exact proxy-observed client IP, existing
+frida_endpoint, IG manually foreground, no configured observer/scripts/concurrent
+device jobs. Dry-run is side-effect free. Appium opens once before instrumentation;
+no activate_app/spawn/restart. Native official REPL pinned17.27.0/tools14.13.2
+supplies Java, disables auto-reload, waits ready, exits on refusal/failure/expiry.
+Default JS trial stays30s; a fixed approved120s global parameter is accepted only
+in addition to30s, all other durations fail closed. Three exact hosts/system trust/
+build/signatures/typed pin exception guards unchanged. Wrapper has a conservative
+monotonic deadline and owns/cleans only its REPL child, never IG/server/STF.
+
+Read-only collector checks mitmweb11.0.2 GET /flows and GET request/response
+content.data; route/metadata verified against public source, not remote server.
+Baseline flow IDs refreshed after trial ready, exact client IP/query/API method/
+host/path/port, proxy Date/time window, finished response and no replay. Detects
+differing search-session IDs using in-memory digest; refuses baseline eviction/
+view changes/API errors/non2xx/size limits. Raw API headers/body metadata kept
+transient, never persisted. HTTP allowed only loopback tunnel; otherwise HTTPS,
+no redirects/TLS-disable. Optional SNIFFER_MITMWEB_AUTHORIZATION read from env
+at use time (secret card needed if agent must receive/use it). No auth in URL.
+
+Separate results config/env from input beanstalk worker. After10 UI gestures+
+settle and successful owned cleanup, writes capture-result then durable outbox
+before first put. One allowlisted normalized parent post/message incl schema1,
+event_id hash(job/keyword/post), job/device/keyword, completeness flag. Partial
+responses stay flagged; do not imply exhaustive results or10 pages/fixed postcount.
+Preflight use/stats only, max-job-size checked before pending puts, INSERTED IDs
+saved after each. results publish resumes existing outbox and does not rerun UI;
+results prepare can prepare a completed saved capture. At-least-once after lost
+reply/crash; downstream consumer must dedup event_id. Never reserve/delete input
+jobs; old worker defaults/ACK policy unchanged. No live production queue puts.
+
+Doc docs/automated-collection.md. Operator still must provide actual web API URL
+without credentials and client_conn.peername IP before runnable live config.
+Actual remote auth, wire framing,120s Android stability and target queue delivery/
+consumer acceptance remain unverified. Do not silently expose/restart services.
+
+Local validation after collect/results implementation:283 tests passed, Ruff/diff
+checks clean, wheel/sdist built. Real loopback HTTP API simulator and synthetic
+Beanstalk wire server verify GET-only capture / use+stats+put only; lifecycle mocks,
+outbox receipt recovery, pinned-REPL command and Node120s guard/expiry simulations.
+No requests/puts to actual infrastructure, no deployed config/CA/proxy changes.

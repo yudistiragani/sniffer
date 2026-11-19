@@ -91,6 +91,19 @@ Untuk body yang diekspor dari proxy remote, tersedia parsing offline tanpa
 Appium/Frida/network. Lihat [format input, command, dan batas parser](docs/instagram-search-parsing.md).
 Ini belum menghubungkan mitmweb remote ke worker.
 
+### Satu run otomatis: 10 scroll → hasil ke Beanstalk
+
+Mode opt-in baru `automation instagram collect --targeted-trial --publish` memakai
+API mitmweb existing **read-only**, bukan ekspor manual/addon/restart proxy.
+Perlu URL WEB API dan IP client Android yang terlihat oleh proxy, bukan hanya
+alamat proxy Android. Trial terarah maksimum120s telah disetujui untuk mode ini;
+default script standalone tetap30s dan worker lama tidak otomatis mengaktifkannya.
+
+Satu message per post dikirim ke tube hasil terpisah. Outbox lokal menyimpan
+receipt agar publish bisa dilanjutkan tanpa mengulang search. Consumer wajib
+dedup `event_id` (at-least-once). Lihat
+[konfigurasi, command dan batas uji](docs/automated-collection.md).
+
 ### Capture saja / proxy independen
 
 ```bash
@@ -184,6 +197,7 @@ yang mengklik STF, aplikasi eksternal, atau worker di host lain.
 - [Redroid dengan Magisk](docs/redroid-magisk.md)
 - [Diagnostik TLS dengan Frida (tanpa bypass)](docs/frida-diagnostics.md)
 - [Parsing hasil search GraphQL / offline export](docs/instagram-search-parsing.md)
+- [Otomasi 10 scroll dan outgoing Beanstalk results](docs/automated-collection.md)
 - [Konteks dan aturan agent](.ai/AI_CONTEXT.md)
 - [Arsitektur](.ai/ARCHITECTURE.md)
 - [Task lanjutan](.ai/TASKS.md)

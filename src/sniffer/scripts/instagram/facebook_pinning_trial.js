@@ -7,7 +7,9 @@
         "i.instagram.com", "i-fallback.instagram.com",
         "instagram.fcgk16-1.fna.fbcdn.net"
     ]);
-    const durationMs = 30000;
+    // Default stays30s. Only the separately approved collect mode may request120s.
+    const durationMs = globalThis.__snifferTrialDurationMs === undefined
+        ? 30000 : globalThis.__snifferTrialDurationMs;
     const maxEvents = 100;
     const contexts = new Map();
     let emitted = 0;
@@ -43,6 +45,10 @@
         return overload.returnType.className === returnType && overload.implementation == null;
     }
 
+    if (durationMs !== 30000 && durationMs !== 120000) {
+        emit("fb_trial.refused", {reason: "duration_not_approved"});
+        return;
+    }
     emit("fb_trial.runtime", {
         mode: "targeted_pinning_exception_override", durationMs: durationMs,
         allowedHosts: Array.from(allowedHosts), expectedVersion: "416.0.0.47.66"

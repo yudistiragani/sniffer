@@ -29,6 +29,22 @@ beanstalk:
   touch_interval: 20
   retry_delay: 30
   max_reserves: 3
+# Outgoing normalized posts, NEVER the input automation job tube.
+# Override SNIFFER_RESULTS_HOST/PORT for the operator-approved server.
+results:
+  host: "127.0.0.1"
+  port: 11300
+  tube: sniffer_instagram_result
+  timeout: 5
+  max_message_bytes: 65535
+remote_mitmweb:
+  # Web UI/API URL, NOT the Android proxy port. Plain HTTP allowed only via loopback.
+  url: null
+  # Exact client_conn.peername IP shown in mitmweb for android01; do not guess.
+  client_ip: null
+  poll_interval: 1
+  timeout: 3
+  settle_seconds: 5
 redroid:
   # Set to an audited, locally available Magisk image, preferably with @sha256 digest.
   # No unverified third-party Magisk image is pulled automatically.

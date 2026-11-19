@@ -121,5 +121,11 @@ Offline parsing provides an inspectable file boundary, not remote transport/job
 correlation. Do not restart/reconfigure the shared proxy to install this code
 without an explicit deployment decision.
 
+Subsequently added: the separately approved
+[one-shot ten-scroll collect command](automated-collection.md) reads the existing
+mitmweb API over GET instead of installing this addon. It requires explicit web
+URL/client IP and opt-in trial/publish flags. The ordinary search command and
+input-job worker are not silently switched to remote capture.
+
 TLS scripts, host allowlists, CA, Android/APK, Frida lifetime and worker defaults
 are unchanged. No automatic request replay or cursor-driven API crawling is added.

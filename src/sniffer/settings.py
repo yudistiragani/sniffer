@@ -41,6 +41,23 @@ class Beanstalk(Model):
     max_reserves: int = Field(default=3, ge=1)
 
 
+class ResultsQueue(Model):
+    host: str = Field(default="127.0.0.1", min_length=1)
+    port: int = Field(default=11300, ge=1, le=65535)
+    tube: str = Field(default="sniffer_instagram_result", pattern=NAME_PATTERN)
+    timeout: int = Field(default=5, ge=1, le=15)
+    max_message_bytes: int = Field(default=65535, ge=1024, le=1024 * 1024)
+
+
+class RemoteMitmweb(Model):
+    # Web UI/API origin, NOT the Android HTTP proxy listener.
+    url: str | None = None
+    client_ip: str | None = None
+    poll_interval: float = Field(default=1, ge=0.5, le=5)
+    timeout: int = Field(default=3, ge=1, le=10)
+    settle_seconds: int = Field(default=5, ge=1, le=15)
+
+
 class Redroid(Model):
     image: str | None = None
     data_dir: Path = Path("data/redroid")
@@ -65,6 +82,8 @@ class Settings(Model):
     devices: dict[str, Device] = Field(default_factory=dict)
     platforms: dict[str, Platform] = Field(default_factory=dict)
     beanstalk: Beanstalk = Field(default_factory=Beanstalk)
+    results: ResultsQueue = Field(default_factory=ResultsQueue)
+    remote_mitmweb: RemoteMitmweb = Field(default_factory=RemoteMitmweb)
     redroid: Redroid = Field(default_factory=Redroid)
     stf: STF = Field(default_factory=STF)
 
@@ -92,4 +111,17 @@ def load_settings(path: Path | None = None) -> Settings:
     for env, key in (("SNIFFER_BEANSTALK_HOST", "host"), ("SNIFFER_BEANSTALK_PORT", "port")):
         if env in os.environ:
             queue[key] = os.environ[env]
+    results = data.setdefault("results", {})
+    for env, key in (
+        ("SNIFFER_RESULTS_HOST", "host"), ("SNIFFER_RESULTS_PORT", "port"),
+        ("SNIFFER_RESULTS_TUBE", "tube"),
+    ):
+        if env in os.environ:
+            results[key] = os.environ[env]
+    remote = data.setdefault("remote_mitmweb", {})
+    for env, key in (
+        ("SNIFFER_MITMWEB_URL", "url"), ("SNIFFER_MITMWEB_CLIENT_IP", "client_ip"),
+    ):
+        if env in os.environ:
+            remote[key] = os.environ[env]
     return Settings.model_validate(data)

@@ -31,6 +31,7 @@ frida_cli = typer.Typer(no_args_is_help=True, help="Explicit Frida metadata diag
 automation = typer.Typer(no_args_is_help=True)
 instagram = typer.Typer(no_args_is_help=True)
 parse_cli = typer.Typer(no_args_is_help=True, help="Offline parsing; no network or device access.")
+results_cli = typer.Typer(no_args_is_help=True, help="Publish/resume only a saved result outbox.")
 app.add_typer(devices, name="device")
 app.add_typer(stf, name="stf")
 app.add_typer(appium, name="appium")
@@ -38,6 +39,7 @@ app.add_typer(mitm, name="mitmproxy")
 app.add_typer(frida_cli, name="frida")
 app.add_typer(automation, name="automation")
 app.add_typer(parse_cli, name="parse")
+app.add_typer(results_cli, name="results")
 automation.add_typer(instagram, name="instagram")
 DeviceOption = Annotated[str, typer.Option("--device", "-d", help="Configured device name.")]
 
@@ -419,6 +421,49 @@ def instagram_search(
         settings, device, "instagram", job, capture=capture, frida=frida,
         frida_spawn=frida_spawn, dry_run=dry_run,
     ))
+
+
+@instagram.command("collect")
+@guarded
+def instagram_collect(
+    ctx: typer.Context,
+    device: DeviceOption,
+    keyword: Annotated[str, typer.Option()],
+    targeted_trial: Annotated[
+        bool, typer.Option(help="Explicit approved targeted native trial, maximum120seconds.")
+    ] = False,
+    publish: Annotated[bool, typer.Option(help="Publish normalized posts to the configured results tube.")] = False,
+    dry_run: bool = False,
+):
+    """One foreground search, exactly10 scrolls, read-only remote capture; no worker loop."""
+    from sniffer.collect import collect
+    job = SearchJob(
+        job_id=f"collect-{uuid.uuid4().hex}", keyword=keyword, scroll_count=10,
+    )
+    emit(collect(
+        ctx.obj, device, job, trial=targeted_trial, publish=publish, dry_run=dry_run,
+    ))
+
+
+@results_cli.command("publish")
+@guarded
+def results_publish(output: Annotated[Path, typer.Option(help="Existing session with result-outbox.json.")]):
+    """Resume saved result puts only; never rerun search or reserve input jobs."""
+    from sniffer.results import publish_outbox
+    emit(publish_outbox(output))
+
+
+@results_cli.command("prepare")
+@guarded
+def results_prepare(
+    ctx: typer.Context,
+    output: Annotated[Path, typer.Option(help="Completed collect capture without an outbox.")],
+):
+    """Prepare a saved successful capture for publish; does not send any message."""
+    from sniffer.results import prepare_saved_outbox
+    if ctx.obj.results.tube == ctx.obj.beanstalk.instagram_tube:
+        raise ValueError("Results tube must differ from the input job tube.")
+    emit(prepare_saved_outbox(output, ctx.obj.results))
 
 
 @app.command("worker")

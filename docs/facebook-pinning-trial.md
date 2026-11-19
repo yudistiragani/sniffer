@@ -38,6 +38,12 @@ preserved. An exception may become a void return ONLY when:
   phrase and no trust-anchor/validity/hostname/proof-of-possession wording.
 - The script is still inside its30second override window.
 
+The default standalone window remains30seconds. The operator later explicitly
+approved a separate foreground automation run up to120seconds. Only the opt-in
+[collect command](automated-collection.md) sets the fixed120,000ms runtime parameter;
+other requested durations fail closed. Exact hosts/build/trust/signature checks
+are unchanged. Do not combine the collect command with this standalone REPL trial.
+
 Unknown messages/types, missing correlation, comparison/inspection failures,
 other hosts, other overloads, or expiry preserve the original exception. The
 outer `verifyWithProofOfPossession` is NOT replaced; it continues its original

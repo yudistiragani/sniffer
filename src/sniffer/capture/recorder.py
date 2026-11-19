@@ -41,7 +41,7 @@ class Recorder:
 
     def response(self, flow):
         try:
-            self._response(flow)
+            return self._response(flow)
         except Exception as error:
             atomic_json(self.output / "capture.failed.json", {"error_type": type(error).__name__})
             raise
@@ -99,6 +99,7 @@ class Recorder:
             if not hasattr(self, "post_writer"):
                 self.post_writer = SearchPostWriter(self.output)
             self.post_writer.write(record)
+        return record
 
     def error(self, flow):
         try:

@@ -19,6 +19,7 @@ SCRIPT = Path("src/sniffer/scripts/instagram/facebook_pinning_trial.js")
     "peer_exception", "validity", "proof_failure", "ambiguous", "long_message", "cast_error",
     "subclass",
     "cdn", "cdn_suffix", "other_cdn",
+    "duration_120", "duration_120_expired", "duration_invalid", "duration_string",
 ])
 def test_pinning_trial_in_simulated_bridge(scenario):
     result = subprocess.run(

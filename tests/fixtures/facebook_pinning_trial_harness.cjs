@@ -138,6 +138,11 @@ const context = {
         events.push(event);
     }
 };
+if (scenario.startsWith("duration_")) {
+    context.__snifferTrialDurationMs = scenario === "duration_120" ||
+        scenario === "duration_120_expired" ? 120000 :
+        scenario === "duration_string" ? "120000" : 120001;
+}
 if (scenario !== "bridge_missing") context.Java = {
     available: true,
     perform(callback) {callback();},
@@ -157,7 +162,8 @@ if (scenario !== "bridge_missing") context.Java = {
     }
 };
 vm.runInNewContext(fs.readFileSync(script, "utf8"), context);
-if (["abi", "version", "signature", "existing_hook", "partial_install", "bridge_missing"]
+if (["abi", "version", "signature", "existing_hook", "partial_install", "bridge_missing",
+    "duration_string", "duration_invalid"]
     .includes(scenario)) {
     assert(events.some(e => e.event === "fb_trial.refused"));
     assert.equal(trustImpl, null);
@@ -167,8 +173,14 @@ if (["abi", "version", "signature", "existing_hook", "partial_install", "bridge_
 } else {
     if (scenario !== "transport") assert(events.some(e => e.event === "fb_trial.ready"));
     if (scenario === "expired") now += 31000;
+    if (scenario === "duration_120") {
+        now += 31000;
+        assert(events.some(e => e.event === "fb_trial.ready" && e.durationMs === 120000));
+    }
+    if (scenario === "duration_120_expired") now += 121000;
     trustFailure = ["trust_reject", "swallowed_trust_reject"].includes(scenario);
-    const allowed = ["override", "fallback", "cdn", "peer_exception", "stale", "transport", "limit"]
+    const allowed = ["override", "fallback", "cdn", "peer_exception", "stale", "transport", "limit",
+        "duration_120"]
         .includes(scenario);
     if (allowed || scenario === "original_success")
         assert.equal(verifyImpl.call(receiver, certs, host, true), undefined);
