@@ -23,6 +23,11 @@
 - [ ] Operator configures exact verified Android `frida_server_path` and tests one
   job/server lifecycle. Abrupt worker exit may leave server running; inspect it
   before any manual cleanup.
+- [x] Fix server startup command for older ADB shell argument handling: full shell
+  launch script passed as one argument so `--listen` reaches frida-server; cleanup
+  accepts argv0-only cmdline for the exact owned PID.
+- [ ] Operator to stop the already-running wrong-port PID after verifying its
+  identity, deploy fix, and validate endpoint then one controlled job.
 
 ### Earlier one-shot collect direction (superseded for keyword worker)
 
@@ -154,7 +159,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **331 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **332 passed**, Ruff/diff checks clean, sdist/wheel build successful.
 Keyword-only worker tests cover loopback Beanstalk protocol, per-job trial cleanup,
 idle, failure/lease loss, replay marker, strict input, CLI opt-in and ten gestures.
 New tests include real loopback mitmweb API simulation, actual outgoing synthetic

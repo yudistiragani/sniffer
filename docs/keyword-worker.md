@@ -60,6 +60,8 @@ shutdown, after verifying that PID's command line still names the configured
 binary. A crash can leave a worker-started server behind; the next run treats it
 as existing and does not assume ownership. Do not run another worker, Appium job,
 Frida observer/trial or manual STF interaction on the device.
+The launch script is passed as one `adb shell` command argument so older
+platform-tools cannot split the Frida `--listen` option from the server command.
 
 For an operator-supervised first job use:
 

@@ -42,8 +42,9 @@ def test_starts_configured_server_once_and_stops_only_owned_pid(monkeypatch):
     assert server.started
     assert server.owned_pid == 987
     assert adb.command.call_args_list[2].args == (
-        "shell", "sh", "-c",
-        "'/data/local/tmp/frida-server' --listen=127.0.0.1:27052 >/dev/null 2>&1 </dev/null & echo $!",
+        "shell",
+        "'/data/local/tmp/frida-server' --listen=127.0.0.1:27052 "
+        ">/dev/null 2>&1 </dev/null & echo $!",
     )
     server.close()
     assert server.owned_pid is None
@@ -96,3 +97,21 @@ def test_cleanup_skips_pid_if_identity_changed(monkeypatch):
     server.owned_pid = 987
     server.close()
     adb.command.assert_called_once_with("shell", "cat", "/proc/987/cmdline", check=False)
+
+
+def test_cleanup_accepts_frida_process_title_with_only_executable(monkeypatch):
+    device = SimpleNamespace(
+        adb_serial="synthetic", frida_endpoint="127.0.0.1:27052",
+        frida_server_path="/data/local/tmp/frida-server",
+    )
+    adb = MagicMock()
+    adb.command.side_effect = [
+        SimpleNamespace(returncode=0, stdout="/data/local/tmp/frida-server"),
+        SimpleNamespace(returncode=0, stdout=""),
+        SimpleNamespace(returncode=1, stdout=""),
+    ]
+    monkeypatch.setattr("sniffer.integrations.frida_server.ADB", lambda *_: adb)
+    server = WorkerFridaServer(device)
+    server.owned_pid = 987
+    server.close()
+    assert adb.command.call_args_list[1].args == ("shell", "kill", "987")

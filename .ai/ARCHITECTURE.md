@@ -27,7 +27,10 @@ explicit Frida endpoint and, only if unreachable and no `frida-server` PID exist
 starts the explicitly configured Android executable on loopback. A worker-owned
 server stays available across jobs; graceful shutdown SIGTERMs only its recorded
 PID after command-line identity verification. Existing server processes and ADB
-forwards are never changed. Each job opens an Appium session,
+forwards are never changed. Pass the launch shell script as one ADB shell command
+argument to preserve `--listen` on older platform-tools; Frida may expose only
+the executable path in `/proc/PID/cmdline`, which is accepted only for the recorded
+PID and exact configured executable during owned cleanup. Each job opens an Appium session,
 if needed resolves the package launcher and sends ONE explicit am start (no -S),
 then waits up to20s
 for foreground + one main PID, then attaches approved native 120s REPL trial,

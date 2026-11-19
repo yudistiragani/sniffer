@@ -76,11 +76,14 @@ class WorkerFridaServer:
         logger.info("Frida server status=START path_configured=true")
         # The path is restricted to shell-safe characters. Capture the PID from this
         # exact background launch; the existing ADB forward is deliberately untouched.
-        started = self.adb.command(
-            "shell", "sh", "-c",
-            f"'{path}' --listen=127.0.0.1:{port} >/dev/null 2>&1 </dev/null & echo $!",
-            check=False,
+        # Keep the full script as one `adb shell` argument. Passing it as
+        # `shell sh -c <script>` is split by some platform-tools versions, making
+        # the listen flag become sh's $0 instead of an argument to frida-server.
+        launch = (
+            f"'{path}' --listen=127.0.0.1:{port} "
+            ">/dev/null 2>&1 </dev/null & echo $!"
         )
+        started = self.adb.command("shell", launch, check=False)
         fields = started.stdout.split()
         if started.returncode != 0 or not fields or not fields[-1].isdecimal():
             raise RuntimeError("Could not confirm the PID of the newly started Frida server.")
@@ -111,7 +114,9 @@ class WorkerFridaServer:
             "shell", "cat", f"/proc/{pid}/cmdline", check=False,
         )
         command = cmdline.stdout.replace("\x00", " ").strip()
-        if cmdline.returncode != 0 or not command.startswith(f"{path} "):
+        if cmdline.returncode != 0 or not (
+            command == path or command.startswith(f"{path} ")
+        ):
             logger.warning("Frida server cleanup skipped; owned PID identity no longer matches.")
             return
         logger.info("Frida server status=STOP_OWNED pid=%s", pid)

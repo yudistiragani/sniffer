@@ -632,3 +632,18 @@ local config/on device. No device/server was accessed. Requires deployment and
 live test; server readiness, attach, login/session and proxy capture unverified.
 Local validation after lifecycle changes:331 tests passed, Ruff/diff clean,
 wheel/sdist built; lifecycle tests use mocks only.
+
+Operator tested startup: worker logged Frida START then failed readiness after
+10s before opening IG; PID41365 remained on device and cleanup skipped because
+Frida exposed just argv0 in cmdline. `/proc/net/tcp` confirmed listener at
+127.0.0.1:27042 (`69A2`), while configured endpoint/forward targeted27052
+(`69AC`). First diagnostic instruction incorrectly used `69C4` for27052; corrected.
+Root cause in implementation: ADB `shell sh -c <script>` split the launch payload
+on older platform-tools, so listen arguments were not passed and server used
+default27042. Fixed to pass full launch script as a single `adb shell` argument;
+owned cleanup now accepts exact executable-only cmdline for its recorded PID.
+Local validation after this fix:332 tests passed, Ruff/diff clean, wheel/sdist built.
+Tests simulate shell invocation and cleanup, not live Android. Current
+misconfigured server PID remains operator-owned/orphaned; it must be stopped
+manually after confirming PID/cmdline, then deploy corrected code and let worker
+start server. Do not assume script can replace an existing inaccessible server.
