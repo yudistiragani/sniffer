@@ -694,3 +694,10 @@ time, then recomputed remaining time for `time.sleep`; crossing the deadline
 between those calls could pass a negative value and raise `ValueError`. Changed
 it to compute remaining once per iteration and break when nonpositive. Regression
 test uses deterministic clock. Needs deploy/live confirmation.
+User reports gesture logs succeed but content sometimes does not advance, likely
+on low-spec Redroid. Applied an explicit `1500 px/s` swipe speed (rather than
+Appium default) and a separate1s settle wait after each gesture, before the
+existing randomized3–5s dwell. This reduces speed / gives UI transition time,
+but no stable visible post identity has yet been verified, so scroll count remains
+attempted gestures only. Add live deployment check; do not claim each swipe
+changed content based only on Appium command success.

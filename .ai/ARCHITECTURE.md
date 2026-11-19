@@ -39,7 +39,8 @@ and taps the first clickable result. It swipes the observed/configured post view
 with a5–8s initial dwell and randomized3–5s between up to119 follow-up gestures
 (120 requested visits counting the first result); near the trial deadline it
 stops cleanly with the actual attempted count. Unique post transitions are not
-verified. It then settles3s and unloads
+verified. Each swipe uses explicit1500 px/s speed and waits1s for transition
+settling before the human dwell. It then settles3s and unloads
 trial/cleans Appium, checkpoints lease, persists completion, then ACKs. While idle
 there is no attached trial. Runtime error releases/buries then stops the worker;
 lease loss never ACKs. No local recorder/mitmweb access/outgoing results. ACK is UI

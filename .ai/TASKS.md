@@ -48,6 +48,8 @@
 - [x] Latest log shows gesture #3 ended before `post_feed.scroll.3` failed after
   the randomized dwell. Fixed a timing race where `time.sleep()` could receive a
   negative remaining duration at the delay boundary; added deterministic test.
+- [ ] Slow explicit viewer swipe to1500 px/s and add1s post-gesture settle wait;
+  local test asserts both. Live content transition remains unverified.
 - [ ] Live verify home-tab selector and post-feed swipe; collect sanitized UI
   hierarchy after opened first post if next-content swipe still fails.
 - [ ] Validate first-result click and post-feed swipe behavior on live IG; verify

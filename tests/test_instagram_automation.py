@@ -70,10 +70,14 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
     second.is_displayed.return_value = True
     results.find_elements.return_value = [first, second]
     delays = []
+    transition_waits = []
     monkeypatch.setattr(
         automation, "_human_delay", lambda _checkpoint, *, deadline, first: (
             delays.append(first) or True
         ),
+    )
+    monkeypatch.setattr(
+        automation, "_dwell", lambda seconds, _checkpoint: transition_waits.append(seconds),
     )
     driver.execute_script.return_value = None
 
@@ -91,10 +95,12 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
         call.args == ("mobile: swipeGesture", {
             "left": 0, "top": 48, "width": 720, "height": 1016,
             "direction": "up", "percent": 0.75,
+            "speed": automation.POST_FEED_SWIPE_SPEED_PX_PER_SECOND,
         })
         for call in driver.execute_script.call_args_list
     )
     assert delays == [True] + [False] * 119
+    assert transition_waits == [automation.POST_FEED_TRANSITION_WAIT_SECONDS] * 119
     assert result == {
         "action": "search_open_first_post_and_scroll",
         "first_result_tapped": True,

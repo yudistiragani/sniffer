@@ -12,6 +12,9 @@ from sniffer.settings import Platform
 
 logger = logging.getLogger(__name__)
 
+POST_FEED_SWIPE_SPEED_PX_PER_SECOND = 1500
+POST_FEED_TRANSITION_WAIT_SECONDS = 1.0
+
 
 def _step(name, action, checkpoint):
     checkpoint()
@@ -147,6 +150,7 @@ def _swipe_viewer_up(driver, bounds: dict[str, int]) -> None:
         "height": height,
         "direction": "up",
         "percent": 0.75,
+        "speed": POST_FEED_SWIPE_SPEED_PX_PER_SECOND,
     })
 
 
@@ -260,6 +264,11 @@ def search_open_first_post_and_scroll(
                 checkpoint,
             )
             scrolls += 1
+            _step(
+                f"post_feed.transition_wait.{index + 1}",
+                lambda: _dwell(POST_FEED_TRANSITION_WAIT_SECONDS, checkpoint),
+                checkpoint,
+            )
             if not _human_delay(checkpoint, deadline=deadline, first=False):
                 stop_reason = "trial_time_budget"
         except Exception as error:

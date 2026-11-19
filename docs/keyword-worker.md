@@ -34,8 +34,11 @@ observed Reels `clips_viewer_view_pager` (or configured `post_feed_viewer`) rath
 than swiping the whole screen. Before each swipe, it reacquires the viewer and
 reads fresh Appium bounds because Instagram may replace the pager after a
 transition. Gesture coordinates come from those bounds rather than its element
-ID, to avoid server-side `swipeGesture` ID validation errors. The existing300s
-trial is a hard job bound; if
+ID, to avoid server-side `swipeGesture` ID validation errors. Each swipe uses
+explicit `1500 px/s` speed, followed by a1s transition-settle wait and the
+randomized human dwell. Appium success only confirms the gesture command ran; it
+does not prove that Instagram changed posts. The existing300s trial is a hard
+job bound; if
 time is nearly exhausted, the worker stops cleanly with fewer visits. The UI does
 not expose a verified unique-post counter here: swipes/visits are attempts, not
 proof that120 distinct posts loaded. The producer contract and tube name remain
