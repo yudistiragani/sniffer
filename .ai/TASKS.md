@@ -2,6 +2,18 @@
 
 ## Active priority (latest direction)
 
+- User corrected flow: engine pushes keyword input job; worker executes UI+10
+  scroll, external proxy already captures and pushes results. No mitmweb API/
+  tunnel/local post output/outgoing publishing in new worker.
+- [x] Implement separate opt-in worker-keywords, strict `{keyword}` temporary
+  contract, per-job scoped targeted trial (existing120s guards), heartbeat,
+  completion marker and no automatic attach retries after runtime failures.
+- [ ] Confirm actual input Beanstalk host/port/tube and final producer schema.
+- [ ] User deploys and tests one reservation; verify job UI/cleanup and independently
+  verify the proxy capture/output. Do not claim ACK proves proxy publication.
+
+### Earlier one-shot collect direction (superseded for keyword worker)
+
 - User now requests one automatic keyword search +10 scrolls + outgoing post
   results, destination202.56.161.146:22400 / tube sniffer_instagram_result.
   Approved keyword prabowo and explicit targeted trial up to120s.
@@ -9,10 +21,14 @@
   fixed120s official native REPL orchestration (default standalone remains30s),
   foreground-only Appium, no restart/spawn/configured concurrent hooks.
 - [x] Implement separate outgoing results config, durable per-post outbox/receipts,
-  max-job-size checks, deterministic consumer dedup IDs and publish-only retry.
+  max-job-size checks and publish-only retry. New collect payload is the full
+  normalized post JSON, no wrapper/posts.jsonl; consumer dedup (job_id,keyword,id).
   Existing input worker unchanged; no live production queue writes.
 - [ ] Obtain actual mitmweb WEB API URL and exact proxy-observed Android client IP.
   Auth only privately if needed; require HTTPS or loopback tunnel, not proxy18919.
+- [x] Create ignored config/local.yaml on workstation with approved result target
+  and android01 Frida forward; unknown web URL/client IP remain null, not guessed.
+  Validate schema only; copy/merge to server separately (not transported by Git).
 - [ ] Operator deploy/configure, dry-run then one bounded collect/publish; verify
   real remote framing/parsed post quality,10 gestures and target queue receipts.
   Consumer processing/ACK, repeated-run stability remain separate acceptance.
@@ -126,7 +142,9 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **283 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **311 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Keyword-only worker tests cover loopback Beanstalk protocol, per-job trial cleanup,
+idle, failure/lease loss, replay marker, strict input, CLI opt-in and ten gestures.
 New tests include real loopback mitmweb API simulation, actual outgoing synthetic
 Beanstalk protocol (use/stats/put only), outbox recovery and120s JS guard scenarios.
 Offline imports load no mitmproxy/Appium/Frida; new parser modules verified in wheel. Base-only

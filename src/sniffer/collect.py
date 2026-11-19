@@ -69,7 +69,7 @@ def collect(settings, device_name: str, job: SearchJob, *, trial: bool, publish:
                     settings.remote_mitmweb,
                     {
                         "platform": "instagram", "domains": ["instagram.com"],
-                        "job_id": job.job_id, "keyword": job.keyword,
+                        "job_id": job.job_id, "keyword": job.keyword, "post_output": "memory",
                     },
                     output,
                 ))
@@ -93,7 +93,8 @@ def collect(settings, device_name: str, job: SearchJob, *, trial: bool, publish:
                 instrumentation.check()
                 if result.get("scrolls") != 10 or capture.matched == 0:
                     raise RuntimeError("Ten scrolls and matching remote search responses were not confirmed.")
-            if not (output / "posts.jsonl").exists():
+            writer = getattr(capture.recorder, "post_writer", None)
+            if writer is None or not writer.posts:
                 raise RuntimeError("No parsed search posts; nothing was published.")
             result.update(
                 job_id=job.job_id, output=str(output.resolve()),
@@ -103,12 +104,13 @@ def collect(settings, device_name: str, job: SearchJob, *, trial: bool, publish:
                 semantic_search_results_verified=capture.verified > 0,
                 search_results_exhaustive=False, publish_requested=publish,
             )
-            # Capture completion survives a failed put; retry only the outbox, not UI.
+            # Persist outbox before any put, including capture-only runs.
+            prepare_outbox(
+                output, settings.results, job_id=job.job_id, device=device_name, keyword=job.keyword,
+                posts=writer.posts.values(),
+            )
             atomic_json(output / "capture-result.json", result)
             if publish:
-                prepare_outbox(
-                    output, settings.results, job_id=job.job_id, device=device_name, keyword=job.keyword,
-                )
                 result.update(publish_outbox(output))
             atomic_json(output / "result.json", result)
             return result

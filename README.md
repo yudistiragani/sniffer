@@ -101,7 +101,8 @@ default script standalone tetap30s dan worker lama tidak otomatis mengaktifkanny
 
 Satu message per post dikirim ke tube hasil terpisah. Outbox lokal menyimpan
 receipt agar publish bisa dilanjutkan tanpa mengulang search. Consumer wajib
-dedup `event_id` (at-least-once). Lihat
+dedup `(job_id, keyword, id)` (at-least-once). Mode collect tidak membuat
+`posts.jsonl`; payload adalah seluruh record post terstruktur tanpa wrapper. Lihat
 [konfigurasi, command dan batas uji](docs/automated-collection.md).
 
 ### Capture saja / proxy independen
@@ -120,6 +121,15 @@ startup proxy; executor tidak dapat memasang addon ke proses arbitrary yang hidu
 MVP command di atas mengelola proses proxy-nya sendiri dan menolak port occupied.
 
 ### Worker Beanstalk
+
+**Flow terbaru: engine mengirim keyword, proxy existing mengirim hasil.** Pakai
+`worker-keywords` dengan input `{"keyword":"prabowo"}`. Frida trial hanya aktif
+saat job berlangsung, kemudian dilepas; worker tidak membaca mitmweb API atau
+mengirim hasil. Konfigurasi input tube/host harus mengikuti engine producer.
+Detail, command first-run, ACK dan retry:
+[worker keyword + proxy existing](docs/keyword-worker.md).
+
+Worker berikut adalah mode legacy dengan kontrak dan capture lokal berbeda:
 
 ```bash
 uv run --all-extras sniffer worker instagram --device android01
@@ -198,6 +208,7 @@ yang mengklik STF, aplikasi eksternal, atau worker di host lain.
 - [Diagnostik TLS dengan Frida (tanpa bypass)](docs/frida-diagnostics.md)
 - [Parsing hasil search GraphQL / offline export](docs/instagram-search-parsing.md)
 - [Otomasi 10 scroll dan outgoing Beanstalk results](docs/automated-collection.md)
+- [Worker keyword dan proxy existing](docs/keyword-worker.md)
 - [Konteks dan aturan agent](.ai/AI_CONTEXT.md)
 - [Arsitektur](.ai/ARCHITECTURE.md)
 - [Task lanjutan](.ai/TASKS.md)

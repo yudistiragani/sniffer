@@ -6,7 +6,9 @@ On2026-11-19 the operator requested a bounded automation run and publishing
 normalized data to `202.56.161.146:22400`. The approval form supplied result tube
 `sniffer_instagram_result`, keyword `prabowo`, and explicit permission for a
 targeted TLS trial up to120seconds. Capture/format choice fields were omitted;
-implementation uses the stated one-message-per-post recommendation. Remote
+implementation uses the stated one-message-per-post recommendation. The operator
+later clarified that the full normalized post JSON must be sent directly, with no
+extra envelope and no `posts.jsonl` in automatic collect. Remote
 collection uses read-only mitmweb GET endpoints instead of modifying its service
 or installing an addon. No live queue puts or remote device commands were run
 by the coding agent.
@@ -105,7 +107,7 @@ The command:
   search-session IDs for this client/query are treated as ambiguous; only an
   in-memory digest is compared, not saved or published.
 - After a short response-settle period, cleans up its own REPL/Appium session.
-  It persists `capture-result.json`, prepares the outbox, then publishes posts.
+  It persists an outbox, then `capture-result.json`, then publishes posts.
 
 Ten scroll gestures do not guarantee ten network pages or any fixed number of
 posts. Search may have cached data/no next page. No matching parsed posts means
@@ -121,28 +123,23 @@ independent internal deadline still limits the TLS decision change.
 One parent post per keyword per run, normalized from the snapshot, becomes:
 
 ```json
-{
-  "schema_version": 1,
-  "event": "instagram.search.post",
-  "event_id": "SHA256 of schema/job/keyword/post identity",
-  "job_id": "collect-unique-id",
-  "device": "android01",
-  "keyword": "prabowo",
-  "complete_response_observed": false,
-  "post": {"id": "synthetic_post_id", "caption": "synthetic caption"}
-}
+{"kind":"instagram_search_post","keyword":"prabowo","job_id":"collect-unique-id","id":"1001_2001","caption":"synthetic caption","complete_response_observed":false}
 ```
 
 See [parser field projection](instagram-search-parsing.md) for the full `post`
 shape. Caption text is not filtered by exact substring: these are Instagram's
 ranked results for the request keyword.
-`event_id` is stable on retries of the same saved run, not across different runs.
+The full normalized parser record is sent as-is, with no extra wrapper. Consumer
+deduplication can use `(job_id, keyword, id)`; those fields do not give exactly-once.
 Media URLs remain sanitized references, not working signed download links.
 
-Output keeps `session.json`, `requests.jsonl`, `posts.jsonl`, sanitized
+Output keeps `session.json`, metadata-only `requests.jsonl`, sanitized
 `frida.jsonl`, generated bounded `collect-trial.js`, `capture-result.json`,
 `result-outbox.json`, receipt summary and success/failure metadata.
-Raw API headers/request bodies are never saved by the collector.
+Raw API headers/request bodies are never saved by the collector. Automatic collect
+keeps enriched posts in bounded memory until the ten-scroll run completes and
+persists them in the outbox; it does not create `posts.jsonl`. If the process fails
+before the outbox is written, in-memory posts cannot be recovered without a new run.
 
 Outbox is written BEFORE putting any post. Every successful INSERTED ID is saved
 atomically before the next put. Each payload is checked against the configured
@@ -155,19 +152,14 @@ uv run sniffer results publish --output output/THE_EXISTING_COLLECT_SESSION
 
 Do not start another automation run just to retry a put. A crash/lost INSERTED
 reply before its local receipt can duplicate delivery. Delivery is **at-least-once**;
-the downstream consumer must deduplicate on `event_id`. Remote acceptance is not
+the downstream consumer should deduplicate on `(job_id, keyword, id)`. Remote acceptance is not
 proof its consumer processed/ACKed the post. This publisher never reserves or
 deletes any queue message.
 
-If capture succeeded without `--publish`, or outbox preparation failed before
-any put, fix the result configuration/size contract and explicitly prepare it:
-
-```bash
-uv run sniffer results prepare --output output/THE_EXISTING_COLLECT_SESSION
-uv run sniffer results publish --output output/THE_EXISTING_COLLECT_SESSION
-```
-
-Prepare refuses existing outboxes; publish pins the destination saved in the
+Capture without `--publish` still writes the outbox for a later `results publish`.
+The older `results prepare` remains available for legacy sessions that already
+contain `posts.jsonl`; it cannot recover a new collect run that failed before
+its outbox was written. Publish pins the destination saved in the
 outbox instead of silently switching servers on retry. Output files are restricted
 runtime state, never fixtures/Git. Keep retention limited.
 

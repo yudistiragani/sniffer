@@ -118,6 +118,16 @@ def test_recorder_top_serp_sequence_outputs_normalized_posts(recorder):
         assert "PRIVATE" not in file.read_text()
 
 
+def test_collect_keeps_posts_in_memory_not_jsonl_or_request_log(recorder):
+    recorder.context.update(keyword="coffee test", post_output="memory")
+    recorder.response(search_flow())
+    recorder.response(search_flow())
+    assert not (recorder.output / "posts.jsonl").exists()
+    assert len(recorder.post_writer.posts) == 3
+    records = [json.loads(line) for line in (recorder.output / "requests.jsonl").read_text().splitlines()]
+    assert all("posts" not in record for record in records)
+
+
 def test_recorder_mismatched_keyword_does_not_export_posts(recorder):
     recorder.context["keyword"] = "different"
     recorder.response(search_flow())

@@ -480,6 +480,21 @@ def worker_command(
     run_worker(ctx.obj, device, platform, capture=capture, frida=frida, once=once)
 
 
+@app.command("worker-keywords")
+@guarded
+def worker_keywords(
+    ctx: typer.Context,
+    device: DeviceOption,
+    targeted_trial: Annotated[
+        bool, typer.Option(help="Explicitly enable approved per-job targeted trial (max120s).")
+    ] = False,
+    once: Annotated[bool, typer.Option(help="Handle at most one reservation.")] = False,
+):
+    """Watch keyword-only jobs; proxy captures/publishes externally."""
+    from sniffer.worker import run_keyword_worker
+    run_keyword_worker(ctx.obj, device, targeted_trial=targeted_trial, once=once)
+
+
 @frida_cli.command("inspect")
 @guarded
 def frida_inspect(

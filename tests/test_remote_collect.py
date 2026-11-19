@@ -220,10 +220,10 @@ def test_results_outbox_separate_schema_receipt_and_idempotent_resume(tmp_path, 
     first = publish_outbox(tmp_path)
     assert first["published_posts"] == 1
     payload = json.loads(client.put.call_args.args[0])
-    assert payload["event"] == "instagram.search.post" and len(payload["event_id"]) == 64
+    assert payload["kind"] == "instagram_search_post" and "event" not in payload
     assert not payload["complete_response_observed"]
-    assert payload["post"]["id"] == "1001_2001"
-    assert "keyword" not in payload["post"]
+    assert payload["id"] == "1001_2001"
+    assert payload["keyword"] == "coffee test"
     publish_outbox(tmp_path)
     client.put.assert_called_once()
     client.reserve.assert_not_called()
@@ -272,7 +272,7 @@ def test_results_resume_does_not_repeat_already_acknowledged_posts(tmp_path, mon
     client.put.return_value = 902
     assert publish_outbox(tmp_path)["published_posts"] == 2
     assert client.put.call_count == 3
-    sent = [json.loads(call.args[0])["post"]["id"] for call in client.put.call_args_list]
+    sent = [json.loads(call.args[0])["id"] for call in client.put.call_args_list]
     assert sent == ["1001_2001", "1002_2002", "1002_2002"]
 
 
@@ -361,6 +361,7 @@ def test_collect_lifecycle_publishes_only_after_successful_capture(settings, mon
         def __init__(self, config, context, output):
             self.output = output
             self.matched = 0 if failure == "empty" else 1
+            self.recorder = SimpleNamespace(post_writer=SimpleNamespace(posts={}))
         def __enter__(self):
             return self
         def __exit__(self, *_):
@@ -369,7 +370,11 @@ def test_collect_lifecycle_publishes_only_after_successful_capture(settings, mon
             pass
         def poll(self, **_):
             if failure != "empty":
-                snapshot(self.output)
+                self.recorder.post_writer.posts[("coffee test", "1001_2001")] = {
+                    "kind": "instagram_search_post", "keyword": "coffee test",
+                    "id": "1001_2001", "caption": "synthetic caption",
+                    "complete_response_observed": False,
+                }
     monkeypatch.setattr(collect_module, "RemoteCapture", Capture)
     def search(driver, platform, job, health):
         health()
@@ -391,6 +396,9 @@ def test_collect_lifecycle_publishes_only_after_successful_capture(settings, mon
         result = collect_module.collect(settings, "android01", job, trial=True, publish=True)
         assert result["scrolls"] == 10 and result["published_posts"] == 1
         publisher.assert_called_once()
+        assert not (Path(result["output"]) / "posts.jsonl").exists()
+        outbox = json.loads((Path(result["output"]) / "result-outbox.json").read_text())
+        assert json.loads(outbox["messages"][0]["payload"])["caption"] == "synthetic caption"
     driver.activate_app.assert_not_called()
     driver.quit.assert_called_once()
     trial.__exit__.assert_called_once()
@@ -499,7 +507,7 @@ def test_real_outgoing_beanstalk_protocol_only_uses_stats_and_put(tmp_path):
         )
         assert publish_outbox(tmp_path)["published_posts"] == 1
         assert commands == ["use", "stats", "put"]
-        assert payloads[0]["post"]["id"] == "1001_2001"
+        assert payloads[0]["id"] == "1001_2001"
         assert json.loads((tmp_path / "result-outbox.json").read_text())["messages"][0]["beanstalk_id"] == 901
     finally:
         server.shutdown()

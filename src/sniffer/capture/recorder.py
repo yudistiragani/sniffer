@@ -94,10 +94,15 @@ class Recorder:
                 record.update(kind="unparsed", reason="invalid JSON")
         else:
             record.update(kind="metadata_only")
-        append_json(self.output / "requests.jsonl", record)
+        # Collect publishes posts via an outbox, not a separate JSONL snapshot or log.
+        metadata_only = self.context.get("post_output") == "memory"
+        append_json(
+            self.output / "requests.jsonl",
+            {k: v for k, v in record.items() if k != "posts"} if metadata_only else record,
+        )
         if record["kind"] == "instagram_search" and record["posts"]:
             if not hasattr(self, "post_writer"):
-                self.post_writer = SearchPostWriter(self.output)
+                self.post_writer = SearchPostWriter(self.output, persist=not metadata_only)
             self.post_writer.write(record)
         return record
 

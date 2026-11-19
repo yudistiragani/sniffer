@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import socket
 from pathlib import Path
@@ -15,11 +14,6 @@ from sniffer.runtime import atomic_json
 from sniffer.settings import ResultsQueue, safe_name
 
 MAX_OUTBOX = 64 * 1024 * 1024
-POST_FIELDS = {
-    "id", "shortcode", "permalink", "media_type", "product_type", "taken_at", "caption",
-    "like_count", "comment_count", "play_count", "view_count", "reshare_count", "user",
-    "images", "videos", "video_duration", "carousel",
-}
 
 
 def connect_results(config: ResultsQueue):
@@ -39,42 +33,35 @@ def message_limit(client, config: ResultsQueue) -> int:
     return min(config.max_message_bytes, limit)
 
 
-def prepare_outbox(output: Path, config: ResultsQueue, *, job_id: str, device: str, keyword: str):
+def prepare_outbox(
+    output: Path, config: ResultsQueue, *, job_id: str, device: str, keyword: str, posts=None,
+):
     safe_name(job_id)
     safe_name(device)
     path = output / "result-outbox.json"
     if path.exists():
         raise ValueError("Result outbox already exists; use results publish to resume it.")
-    posts_path = output / "posts.jsonl"
-    if not posts_path.exists() or posts_path.stat().st_size > 32 * 1024 * 1024:
-        raise RuntimeError("Missing/oversized posts.jsonl; nothing was published.")
+    if posts is None:
+        posts_path = output / "posts.jsonl"
+        if not posts_path.exists() or posts_path.stat().st_size > 32 * 1024 * 1024:
+            raise RuntimeError("Missing/oversized posts.jsonl; nothing was published.")
+        with posts_path.open(encoding="utf-8") as handle:
+            posts = [json.loads(line) for line in handle]
     messages, seen = [], set()
-    with posts_path.open(encoding="utf-8") as handle:
-        for line in handle:
-            if len(messages) >= 10000:
-                raise RuntimeError("Result post count limit reached; nothing was published.")
-            post = json.loads(line)
-            if post.get("kind") != "instagram_search_post" or post.get("keyword") != keyword:
-                raise ValueError("Unexpected post record/keyword; nothing was published.")
-            post_id = post.get("id")
-            if not isinstance(post_id, str) or not post_id or post_id in seen:
-                raise ValueError("Missing/duplicate post ID; nothing was published.")
-            seen.add(post_id)
-            # Snapshot files are produced by the allowlisted parser, not raw capture.
-            data = redact({key: value for key, value in post.items() if key in POST_FIELDS})
-            event_id = hashlib.sha256(
-                json.dumps([1, job_id, keyword, post_id], ensure_ascii=False).encode()
-            ).hexdigest()
-            payload = {
-                "schema_version": 1, "event": "instagram.search.post", "event_id": event_id,
-                "job_id": job_id, "device": device, "keyword": keyword,
-                "complete_response_observed": post.get("complete_response_observed") is True,
-                "post": data,
-            }
-            encoded = json.dumps(payload, ensure_ascii=False, allow_nan=False)
-            if len(encoded.encode()) > config.max_message_bytes:
-                raise RuntimeError("A result exceeds the message size limit; no posts were published.")
-            messages.append({"payload": encoded, "beanstalk_id": None})
+    for post in posts:
+        if len(messages) >= 10000:
+            raise RuntimeError("Result post count limit reached; nothing was published.")
+        if post.get("kind") != "instagram_search_post" or post.get("keyword") != keyword:
+            raise ValueError("Unexpected post record/keyword; nothing was published.")
+        post_id = post.get("id")
+        if not isinstance(post_id, str) or not post_id or post_id in seen:
+            raise ValueError("Missing/duplicate post ID; nothing was published.")
+        seen.add(post_id)
+        # Full normalized post record, without an envelope or schema conversion.
+        encoded = json.dumps(redact(post), ensure_ascii=False, allow_nan=False)
+        if len(encoded.encode()) > config.max_message_bytes:
+            raise RuntimeError("A result exceeds the message size limit; no posts were published.")
+        messages.append({"payload": encoded, "beanstalk_id": None})
     if not messages:
         raise RuntimeError("No search posts to publish; empty runs are not success.")
     state = {"schema_version": 1, "destination": config.model_dump(), "messages": messages}

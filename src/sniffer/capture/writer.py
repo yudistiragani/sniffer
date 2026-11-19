@@ -52,11 +52,14 @@ class SearchPostWriter:
 
     def __init__(
         self, output: Path, *, max_posts: int = 10000, max_bytes: int = 32 * 1024 * 1024,
+        persist: bool = True,
     ):
         self.output = output
         self.max_posts = max_posts
         self.max_bytes = max_bytes
+        self.persist = persist
         self.posts = {}
+        self.total_bytes = 0
 
     def write(self, record: dict) -> None:
         def enrich(old, new):
@@ -75,7 +78,7 @@ class SearchPostWriter:
             previous = self.posts.get(key, {})
             if not previous and len(self.posts) >= self.max_posts:
                 raise RuntimeError("Search post limit reached; stop this capture session.")
-            self.posts[key] = {
+            updated = {
                 **enrich(previous, post),
                 "kind": "instagram_search_post",
                 "keyword": record["keyword"],
@@ -86,7 +89,13 @@ class SearchPostWriter:
                     or record["stream_complete"]
                 ),
             }
-        if not self.posts:
+            old_size = len(json.dumps(previous, ensure_ascii=False).encode()) if previous else 0
+            new_size = len(json.dumps(updated, ensure_ascii=False).encode())
+            if self.total_bytes - old_size + new_size > self.max_bytes:
+                raise RuntimeError("Search output size limit reached; stop this capture session.")
+            self.total_bytes += new_size - old_size
+            self.posts[key] = updated
+        if not self.posts or not self.persist:
             return
         path = self.output / "posts.jsonl"
         temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")

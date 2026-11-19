@@ -16,6 +16,14 @@ class SearchJob(BaseModel):
     scroll_pause_ms: int = Field(default=1500, ge=100, le=30000)
 
 
+class KeywordJob(BaseModel):
+    """Temporary input contract; producer supplies only a keyword."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, strict=True)
+
+    keyword: str = Field(min_length=1, max_length=200)
+
+
 class InvalidJob(ValueError):
     """Payload must not be retried."""
 

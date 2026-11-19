@@ -17,6 +17,18 @@ commands or `exec()` of source files. Third-party integrations are lazy imports.
 
 ## Execution
 
+Latest user direction: input keyword jobs drive UI; existing external proxy
+independently captures and publishes. See `docs/keyword-worker.md`. New explicit
+`worker-keywords --targeted-trial` is separate from the legacy worker and collect.
+Temporary strict input `{keyword:string}`; no producer-supplied scripts/options.
+Queue-server instance ID + tube + numeric job ID form a stable local marker key.
+Worker holds device lease/queue heartbeat; each job opens foreground-only Appium,
+attaches approved native 120s REPL trial, executes10 scrolls and settles3s, unloads
+trial/cleans Appium, checkpoints lease, persists completion, then ACKs. While idle
+there is no attached trial. Runtime error releases/buries then stops the worker;
+lease loss never ACKs. No local recorder/mitmweb access/outgoing results. ACK is UI
+only, not proxy capture/publish verification; no exactly-once across crashes/restarts.
+
 Validated baseline: Appium only with proxy off, `--no-capture`, Frida disabled.
 User supplied readable native timeline JSON, then a paired TopSerpQuery
 request/response with the controlled keyword in remote mitmproxy after the
@@ -178,12 +190,15 @@ is required on shared NAT/STF/other hosts. Ten gestures are not ten pages/guaran
 post count; no posts/failure prevents publishing. Successful UI/capture cleanup
 precedes outgoing sends. Parser completion stays distinct from HTTP completion.
 
-ResultsQueue settings/env are separate from input Beanstalk. results.py writes a
-bounded durable outbox of schema1 per-post envelopes before any put, checks
+ResultsQueue settings/env are separate from input Beanstalk. The collect recorder
+accumulates normalized posts in bounded memory and logs metadata only; it does
+not create posts.jsonl. results.py writes a bounded durable outbox of full
+normalized per-post JSON records (no envelope) before any put, checks
 configured/server max-job-size before pending puts and atomically saves each
-INSERTED receipt. Stable event_id permits consumer dedup after lost reply/crash
+INSERTED receipt. Consumer may dedup using (job_id,keyword,id) after lost reply/crash
 (at-least-once, not exactly-once). Results prepare/publish operate saved capture
-only; no automation rerun, reserve/delete or input worker ACK changes.
+only; no automation rerun, reserve/delete or input worker ACK changes. In-memory
+posts are not recoverable if the run fails before writing the outbox.
 No live remote acceptance is implied by local HTTP/protocol/JS simulations.
 
 ## Infrastructure

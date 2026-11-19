@@ -534,3 +534,57 @@ checks clean, wheel/sdist built. Real loopback HTTP API simulator and synthetic
 Beanstalk wire server verify GET-only capture / use+stats+put only; lifecycle mocks,
 outbox receipt recovery, pinned-REPL command and Node120s guard/expiry simulations.
 No requests/puts to actual infrastructure, no deployed config/CA/proxy changes.
+
+Operator requested config/local.yaml after returning to Build. No existing local
+file was present here. Created a Git-ignored operator profile preserving example
+device/selectors/local paths and separate incoming queue defaults; android01
+frida_endpoint=127.0.0.1:27052 and outgoing results202.56.161.146:22400 /
+sniffer_instagram_result. Appium4723 remains the example/default, not a new live
+verification. remote_mitmweb.url/client_ip intentionally null because neither
+was supplied; collect must fail before any service access until configured.
+No secret/token or guessed web port/NAT IP. File exists ONLY on this workstation;
+Git push/pull will not transfer it. Operator must copy/merge on server without
+overwriting any existing server-local profile. No service/device changes.
+
+User clarified the objective: retain automatic search+10 scroll+sniff+parse, but
+do not create posts.jsonl in collect; publish each FULL normalized post JSON
+directly (no envelope). User explicitly chose protected temporary outbox for
+retry. Collect now accumulates/deduplicates in bounded memory, logs only response
+metadata, writes outbox after successful capture even without --publish, then
+optionally puts records. Existing offline/local recorder still writes posts.jsonl.
+Any old outbox remains unmodified and publishable with its original payload.
+If capture fails before outbox persistence the in-memory data cannot be recovered.
+Lost put reply/receipt can duplicate; consumer dedup by (job_id,keyword,id).
+Remote web API remains required by current collector; HTTP-only remote without
+an accessible secure tunnel has not been resolved. No remote service accessed.
+Local validation after direct JSON/outbox change:284 tests passed, Ruff/diff clean,
+wheel/sdist build successful. Tests use synthetic capture and queue, not live proxy.
+
+## Latest direction: input keyword worker; proxy owns result publishing
+
+User corrected the architecture: external engine puts keyword jobs into Beanstalk;
+our worker watches, searches, scrolls10 times, and existing proxy separately sniffs
+and pushes results. No remote mitmweb API/tunnel, local posts.jsonl or outgoing
+publisher required for this path. Producer host/port/tube/schema not yet confirmed;
+temporary strictly validated input {"keyword":"prabowo"} only, other fields refused.
+Do not assume outgoing result host/tube are input host/tube.
+
+User explicitly approved per-job targeted Frida: attach only on reservation,
+native official pinned REPL, existing verified three-host/system-trust/build guards
+and120s cap; unload after job and stay unattached while queue idle. Existing IG
+must already be open/foreground; no spawn/app/service/proxy/CA restart/change.
+New opt-in command `sniffer worker-keywords --device android01 --targeted-trial`
+(--once for one reservation/timeout). Legacy worker unchanged, no silent hooks.
+UI automation only: ACK means10 gestures, owned cleanup and 3s wait, NOT evidence
+proxy captured or pushed. External proxy state is not queried; it remains operator's
+responsibility to verify. Device lock and lease heartbeat held per reservation.
+Success marker before delete keyed hash(queue stats.id instance,tube,job id);
+crash before marker or queue restart may repeat job. Runtime error releases/buries
+according to retry cap then stops worker; no unattended repeat attach after trial
+failure. Invalid payload/TTR buried, lease lost never ACK. No code connects to
+actual server or publishes any result; no live trial/worker acceptance yet.
+Documentation docs/keyword-worker.md.
+Local validation:311 tests passed, Ruff/diff clean, wheel/sdist built. Includes
+actual synthetic loopback queue protocol and mocked Appium/Frida lifecycle; no
+real queue/device/proxy commands were run by agent. User's earlier working
+UI/capture smoke does not prove this new per-job worker path.
