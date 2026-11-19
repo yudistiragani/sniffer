@@ -16,11 +16,14 @@ class StaleElementReferenceException(Exception):
 
 def search_driver():
     driver = MagicMock()
-    tab, field, results = MagicMock(), MagicMock(), MagicMock()
-    for element in (tab, field, results):
+    home, tab, field, results = MagicMock(), MagicMock(), MagicMock(), MagicMock()
+    for element in (home, tab, field, results):
         element.is_displayed.return_value = True
     field.get_attribute.return_value = "private-keyword"
     mapping = {
+        ("accessibility id", "Home"): home,
+        ("accessibility id", "Beranda"): home,
+        ("id", "com.instagram.android:id/feed_tab"): home,
         ("accessibility id", "Search and explore"): tab,
         ("id", "com.instagram.android:id/action_bar_search_edit_text"): field,
         ("id", "com.instagram.android:id/recycler_view"): results,
@@ -28,6 +31,7 @@ def search_driver():
     driver.find_elements.side_effect = lambda strategy, value: (
         [mapping[(strategy, value)]] if (strategy, value) in mapping else []
     )
+    driver._home_tab = home
     return driver, tab, field
 
 
@@ -72,6 +76,7 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
 
     first.click.assert_called_once()
     second.click.assert_not_called()
+    driver._home_tab.click.assert_called_once()
     assert len(swipes) == 119
     assert result == {
         "action": "search_open_first_post_and_scroll",

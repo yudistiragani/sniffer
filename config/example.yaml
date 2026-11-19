@@ -64,6 +64,10 @@ platforms:
     domains: [instagram.com, cdninstagram.com]
     frida_scripts: []  # e.g. shared/observe.js; this is NOT a TLS bypass
     selectors:
+      home_tab:
+        - ["accessibility id", "Home"]
+        - ["accessibility id", "Beranda"]
+        - ["id", "com.instagram.android:id/feed_tab"]
       search_tab:
         - ["accessibility id", "Search and explore"]
         - ["accessibility id", "Search"]

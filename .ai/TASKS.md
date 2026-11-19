@@ -33,6 +33,10 @@
   max120 requested content visits (initial result counts as1); accepted a 300s
   per-job trial bound. Worker swipes at most119 times; unique item loading is not
   verified by UI, and original producer schema stays `{keyword}`.
+- [x] Keyword worker normalizes to Home before Search, regardless of whether IG
+  was left on Profile; explicit selector candidates with bounded fail-closed lookup.
+- [ ] Live verify home-tab selector and post-feed swipe; collect sanitized UI
+  hierarchy after opened first post if next-content swipe still fails.
 - [ ] Validate first-result click and post-feed swipe behavior on live IG; verify
   the external proxy independently. Do not interpret120 gestures as120 unique posts.
 

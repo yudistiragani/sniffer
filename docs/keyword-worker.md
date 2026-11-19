@@ -53,8 +53,12 @@ exact file still exists and is executable on the target.
 IG must already be logged in. If it is closed/backgrounded, the worker resolves
 the installed Instagram launcher activity, checks the component belongs to the
 Instagram package, then sends one `am start` without `-S`. It waits up to20s for foreground plus exactly
-one main PID. If already foreground, it sends no launch command. Appium, Android
-proxy configuration and CA remain operator-managed. The worker never changes the
+one main PID. For every keyword job, it then taps the Home tab before opening
+Search, so the flow does not depend on whether IG was left on Profile or another
+tab. It uses configured `home_tab` selectors or built-in Home/Beranda accessibility
+labels and the Instagram feed-tab ID; if no Home tab is found, the job fails
+rather than searching from an unknown screen. If already foreground, it sends
+no launch command. Appium, Android proxy configuration and CA remain operator-managed. The worker never changes the
 ADB forward. On a job it first checks the Frida endpoint; if reachable, it uses
 that server and never stops it. If unreachable, an existing `frida-server` process
 blocks any replacement. Only when no process exists does it start the configured

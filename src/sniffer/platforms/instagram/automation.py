@@ -27,10 +27,26 @@ def _step(name, action, checkpoint):
     return result
 
 
-def _submit_keyword(driver, config: Platform, job: SearchJob, checkpoint):
+def _submit_keyword(
+    driver, config: Platform, job: SearchJob, checkpoint, *, start_from_home=False,
+):
     # The operator must log in beforehand. Never automate credential entry.
     def step(name, action):
         return _step(name, action, checkpoint)
+
+    if start_from_home:
+        home_candidates = config.selectors.get("home_tab") or [
+            ("accessibility id", "Home"),
+            ("accessibility id", "Beranda"),
+            ("id", "com.instagram.android:id/feed_tab"),
+        ]
+        home = step("home_tab.find", lambda: wait_for(
+            driver, home_candidates, name="home_tab", checkpoint=checkpoint,
+        ))
+        step("home_tab.click", lambda: interact(
+            driver, home_candidates, lambda element: element.click(),
+            initial=home, name="home_tab.click", checkpoint=checkpoint,
+        ))
 
     tab = step("search_tab.find", lambda: wait_for(
         driver, config.selectors.get("search_tab", []),
@@ -104,7 +120,7 @@ def search_open_first_post_and_scroll(
     """Open the first clickable search result and swipe at most 119 times."""
     if job.scroll_count != KEYWORD_POST_SCROLLS:
         raise ValueError(f"Keyword worker requires {KEYWORD_POST_SCROLLS} post-feed swipes.")
-    results = _submit_keyword(driver, config, job, checkpoint)
+    results = _submit_keyword(driver, config, job, checkpoint, start_from_home=True)
 
     def first_visible_clickable():
         deadline = time.monotonic() + 20

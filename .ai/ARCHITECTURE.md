@@ -34,8 +34,8 @@ PID and exact configured executable during owned cleanup. Each job opens an Appi
 if needed resolves the package launcher and sends ONE explicit am start (no -S),
 then waits up to20s for foreground + one main PID, then attaches the approved
 native REPL trial (300s for keyword worker; standalone collect remains120s),
-taps the first clickable search result
-and attempts at most119 follow-up swipes (120 requested content visits counting
+starts each job by tapping Home regardless of the prior foreground tab, searches,
+taps the first clickable result and attempts at most119 follow-up swipes (120 requested content visits counting
 the first result), then settles3s and unloads
 trial/cleans Appium, checkpoints lease, persists completion, then ACKs. While idle
 there is no attached trial. Runtime error releases/buries then stops the worker;

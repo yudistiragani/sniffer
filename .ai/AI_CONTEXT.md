@@ -660,3 +660,12 @@ post-transition detector. Tests use mocked Appium/Frida; live first-result
 selector/navigation and proxy capture still need operator verification.
 Local validation after content-feed change:336 tests passed, Ruff/diff clean and
 wheel/sdist built; all new UI and extended-duration assertions are mocked/simulated.
+
+User now reports device can be left on Profile and subsequent job may fail, and
+that current post-feed swipe does not advance. Keyword flow now taps Home before
+search on every job, with configured `home_tab` selectors or Home/Beranda/feed-tab
+fallbacks; it fails safely if the Home tab cannot be located. No app reset, logout,
+or data clearing. Swipe algorithm remains a vertical Appium mobile swipe; it is
+not live-verified. If this still does not advance after Home normalization, need
+sanitized UI hierarchy from the opened first-post screen to identify the actual
+viewer/scroll target before changing gestures. Home lookup is mocked locally only.
