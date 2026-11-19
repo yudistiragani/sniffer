@@ -78,6 +78,9 @@ platforms:
       results:
         - ["id", "com.instagram.android:id/recycler_view"]
         - ["class name", "androidx.recyclerview.widget.RecyclerView"]
+      post_feed_viewer:
+        - ["id", "com.instagram.android:id/clips_viewer_view_pager"]
+        - ["id", "com.instagram.android:id/swipeable_nav_view_pager"]
   tiktok:
     package: com.zhiliaoapp.musically
     domains: [tiktok.com, tiktokv.com, tiktokcdn.com]

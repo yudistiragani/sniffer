@@ -28,11 +28,14 @@ Keyword must contain 1–200 characters after trimming. Empty/non-string keyword
 invalid JSON and extra fields (including job-supplied script paths, device IDs
 or scroll count) are invalid and buried. After Enter, the worker taps the first
 visible clickable result and performs at most119 upward swipes, with the existing
-1500ms pause, for a ceiling of120 requested content visits including the first
-post. The UI does not expose a verified unique-post counter here: swipes and
-visits are requested, not proof that120 distinct posts loaded. The producer
-contract and tube name remain to be confirmed; do not use the proxy's result
-tube as an input tube.
+first-result dwell of5–8s and randomized3–5s between follow-up swipes, for a
+ceiling of120 requested content visits including the first post. It targets the
+observed Reels `clips_viewer_view_pager` (or configured `post_feed_viewer`) rather
+than swiping the whole screen. The existing300s trial is a hard job bound; if
+time is nearly exhausted, the worker stops cleanly with fewer visits. The UI does
+not expose a verified unique-post counter here: swipes/visits are attempts, not
+proof that120 distinct posts loaded. The producer contract and tube name remain
+to be confirmed; do not use the proxy's result tube as an input tube.
 
 Queue host/port and `instagram_tube` come from `beanstalk` in local YAML.
 `SNIFFER_BEANSTALK_HOST` / `SNIFFER_BEANSTALK_PORT` can override host/port.

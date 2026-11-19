@@ -16,8 +16,11 @@ class StaleElementReferenceException(Exception):
 
 def search_driver():
     driver = MagicMock()
-    home, tab, field, results = MagicMock(), MagicMock(), MagicMock(), MagicMock()
-    for element in (home, tab, field, results):
+    home, tab, field, results, viewer = (
+        MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(),
+    )
+    viewer.id = "post-feed-viewer"
+    for element in (home, tab, field, results, viewer):
         element.is_displayed.return_value = True
     field.get_attribute.return_value = "private-keyword"
     mapping = {
@@ -27,6 +30,7 @@ def search_driver():
         ("accessibility id", "Search and explore"): tab,
         ("id", "com.instagram.android:id/action_bar_search_edit_text"): field,
         ("id", "com.instagram.android:id/recycler_view"): results,
+        ("id", "com.instagram.android:id/clips_viewer_view_pager"): viewer,
     }
     driver.find_elements.side_effect = lambda strategy, value: (
         [mapping[(strategy, value)]] if (strategy, value) in mapping else []
@@ -64,9 +68,13 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
     first.is_displayed.return_value = True
     second.is_displayed.return_value = True
     results.find_elements.return_value = [first, second]
-    swipes = []
-    monkeypatch.setattr(automation, "scroll_up", lambda current: swipes.append(current))
-    monkeypatch.setattr(automation, "_dwell", lambda *_: None)
+    delays = []
+    monkeypatch.setattr(
+        automation, "_human_delay", lambda _checkpoint, *, deadline, first: (
+            delays.append(first) or True
+        ),
+    )
+    driver.execute_script.return_value = None
 
     result = automation.search_open_first_post_and_scroll(
         driver, settings.platforms["instagram"],
@@ -77,7 +85,14 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
     first.click.assert_called_once()
     second.click.assert_not_called()
     driver._home_tab.click.assert_called_once()
-    assert len(swipes) == 119
+    assert driver.execute_script.call_count == 119
+    assert all(
+        call.args == ("mobile: swipeGesture", {
+            "elementId": "post-feed-viewer", "direction": "up", "percent": 0.75,
+        })
+        for call in driver.execute_script.call_args_list
+    )
+    assert delays == [True] + [False] * 119
     assert result == {
         "action": "search_open_first_post_and_scroll",
         "first_result_tapped": True,
@@ -85,7 +100,31 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
         "content_visits_requested": 120,
         "content_visits_verified": False,
         "scrolls": 119,
+        "stop_reason": "content_limit",
     }
+
+
+def test_keyword_flow_respects_trial_budget_and_finishes_partial_visit(settings, monkeypatch):
+    driver, _, _ = search_driver()
+    results = driver.find_elements.side_effect(
+        "id", "com.instagram.android:id/recycler_view"
+    )[0]
+    first = MagicMock()
+    first.is_displayed.return_value = True
+    results.find_elements.return_value = [first]
+    monkeypatch.setattr(
+        automation, "_human_delay", lambda *_args, **_kwargs: False,
+    )
+    result = automation.search_open_first_post_and_scroll(
+        driver, settings.platforms["instagram"],
+        SearchJob(job_id="content-budget", keyword="private-keyword", scroll_count=119),
+        lambda: None, deadline=0,
+    )
+    first.click.assert_called_once()
+    driver.execute_script.assert_not_called()
+    assert result["content_visits_requested"] == 1
+    assert result["scrolls"] == 0
+    assert result["stop_reason"] == "trial_time_budget"
 
 
 def test_failure_log_identifies_clear_and_does_not_continue(settings, caplog):

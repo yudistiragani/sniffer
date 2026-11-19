@@ -126,13 +126,14 @@ def test_keyword_executor_scopes_trial_to_job_and_no_capture(settings, monkeypat
             if failure == "cleanup":
                 raise RuntimeError("cleanup failed")
     monkeypatch.setattr("sniffer.integrations.trial_repl.TrialREPL", trial)
-    def search(_driver, _platform, value, health):
+    def search(_driver, _platform, value, health, **kwargs):
         assert value.scroll_count == 119
+        assert set(kwargs) == {"deadline"}
         health()
         if failure == "search":
             raise RuntimeError("search failed")
         return {
-            "scrolls": 118 if failure == "scrolls" else 119,
+            "scrolls": 120 if failure == "scrolls" else 119,
             "first_result_tapped": True,
         }
     monkeypatch.setattr(

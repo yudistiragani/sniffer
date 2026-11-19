@@ -162,12 +162,14 @@ def execute_keyword(
                 )
                 result = search_open_first_post_and_scroll(
                     driver, settings.platforms["instagram"], job, health,
+                    deadline=trial.deadline - 5,
                 )
                 if (
-                    result.get("scrolls") != KEYWORD_POST_SCROLLS
+                    type(result.get("scrolls")) is not int
+                    or not 0 <= result["scrolls"] <= KEYWORD_POST_SCROLLS
                     or not result.get("first_result_tapped")
                 ):
-                    raise RuntimeError("The requested first-post content feed was not completed.")
+                    raise RuntimeError("The first-post content feed did not complete safely.")
                 # Give final proxied requests a bounded window before detaching the hook.
                 until = time.monotonic() + 3
                 while time.monotonic() < until:

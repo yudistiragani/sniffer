@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import random
 import time
 from collections.abc import Callable
 
@@ -102,6 +103,21 @@ def _dwell(seconds: float, checkpoint: Callable[[], None]) -> None:
         time.sleep(min(0.2, max(0, deadline - time.monotonic())))
 
 
+def _human_delay(
+    checkpoint: Callable[[], None], *, deadline: float | None, first: bool,
+) -> bool:
+    lower, upper = (5.0, 8.0) if first else (3.0, 5.0)
+    duration = random.uniform(lower, upper)
+    started = time.monotonic()
+    if deadline is not None and started + duration >= deadline - 2:
+        return False
+    while time.monotonic() - started < duration:
+        checkpoint()
+        time.sleep(min(0.2, duration - (time.monotonic() - started)))
+    checkpoint()
+    return True
+
+
 def search(driver, config: Platform, job: SearchJob, checkpoint: Callable[[], None]) -> dict:
     _submit_keyword(driver, config, job, checkpoint)
     for index in range(job.scroll_count):
@@ -115,12 +131,17 @@ def search(driver, config: Platform, job: SearchJob, checkpoint: Callable[[], No
 
 
 def search_open_first_post_and_scroll(
-    driver, config: Platform, job: SearchJob, checkpoint: Callable[[], None],
+    driver, config: Platform, job: SearchJob, checkpoint: Callable[[], None], *,
+    deadline: float | None = None,
 ) -> dict:
     """Open the first clickable search result and swipe at most 119 times."""
     if job.scroll_count != KEYWORD_POST_SCROLLS:
         raise ValueError(f"Keyword worker requires {KEYWORD_POST_SCROLLS} post-feed swipes.")
     results = _submit_keyword(driver, config, job, checkpoint, start_from_home=True)
+    viewer_candidates = config.selectors.get("post_feed_viewer") or [
+        ("id", "com.instagram.android:id/clips_viewer_view_pager"),
+        ("id", "com.instagram.android:id/swipeable_nav_view_pager"),
+    ]
 
     def first_visible_clickable():
         deadline = time.monotonic() + 20
@@ -169,16 +190,29 @@ def search_open_first_post_and_scroll(
         )
         raise
 
-    # Count the opened first result as content 1. At most 119 vertical swipes
-    # can expose additional feed items, for a ceiling of 120 requested visits.
-    _dwell(job.scroll_pause_ms / 1000, checkpoint)
-    for index in range(KEYWORD_POST_SCROLLS):
+    viewer = _step("post_feed.viewer.find", lambda: wait_for(
+        driver, viewer_candidates, name="post_feed_viewer", checkpoint=checkpoint,
+    ), checkpoint)
+    # Use the viewer itself as the gesture target. The observed IG Reels hierarchy
+    # exposes clips_viewer_view_pager as the vertically scrollable ViewPager.
+    scrolls = 0
+    stop_reason = "content_limit"
+    if not _human_delay(checkpoint, deadline=deadline, first=True):
+        stop_reason = "trial_time_budget"
+    for index in range(KEYWORD_POST_SCROLLS if stop_reason == "content_limit" else 0):
+        if deadline is not None and time.monotonic() + 8 >= deadline - 2:
+            stop_reason = "trial_time_budget"
+            break
         checkpoint()
         started = time.monotonic()
         logger.info("IG step=post_feed.scroll.%s status=START", index + 1)
         try:
-            scroll_up(driver)
-            _dwell(job.scroll_pause_ms / 1000, checkpoint)
+            driver.execute_script("mobile: swipeGesture", {
+                "elementId": viewer.id, "direction": "up", "percent": 0.75,
+            })
+            scrolls += 1
+            if not _human_delay(checkpoint, deadline=deadline, first=False):
+                stop_reason = "trial_time_budget"
         except Exception as error:
             logger.error(
                 "IG step=post_feed.scroll.%s status=FAILED error_type=%s",
@@ -189,12 +223,15 @@ def search_open_first_post_and_scroll(
             "IG step=post_feed.scroll.%s status=END duration=%.2fs",
             index + 1, time.monotonic() - started,
         )
+        if stop_reason == "trial_time_budget":
+            break
     checkpoint()
     return {
         "action": "search_open_first_post_and_scroll",
         "first_result_tapped": True,
         "content_visit_limit": KEYWORD_CONTENT_LIMIT,
-        "content_visits_requested": KEYWORD_CONTENT_LIMIT,
+        "content_visits_requested": min(KEYWORD_CONTENT_LIMIT, 1 + scrolls),
         "content_visits_verified": False,
-        "scrolls": KEYWORD_POST_SCROLLS,
+        "scrolls": scrolls,
+        "stop_reason": stop_reason,
     }

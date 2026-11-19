@@ -658,7 +658,7 @@ schema remains keyword-only. Implemented worker-only 300s REPL/JS limit and
 marks unique-content count unverified because Appium currently has no stable
 post-transition detector. Tests use mocked Appium/Frida; live first-result
 selector/navigation and proxy capture still need operator verification.
-Local validation after content-feed change:336 tests passed, Ruff/diff clean and
+Local validation after content-feed change:337 tests passed, Ruff/diff clean and
 wheel/sdist built; all new UI and extended-duration assertions are mocked/simulated.
 
 User now reports device can be left on Profile and subsequent job may fail, and
@@ -669,3 +669,10 @@ or data clearing. Swipe algorithm remains a vertical Appium mobile swipe; it is
 not live-verified. If this still does not advance after Home normalization, need
 sanitized UI hierarchy from the opened first-post screen to identify the actual
 viewer/scroll target before changing gestures. Home lookup is mocked locally only.
+User supplied a hierarchy showing `com.instagram.android:id/clips_viewer_view_pager`
+as the scrollable Reels ViewPager. Worker now waits for that viewer (or configured
+`post_feed_viewer`) and targets it with a single upward swipe per next item, rather
+than the generic screen gesture. User requested human pacing: random5–8s after
+opening first result, then random3–5s between items. Within approved300s trial,
+it stops cleanly before expiry and records actual attempts, so max120 is a cap,
+not a guarantee. This click/gesture/delay behavior is still only mock-tested.

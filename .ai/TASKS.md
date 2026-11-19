@@ -35,6 +35,10 @@
   verified by UI, and original producer schema stays `{keyword}`.
 - [x] Keyword worker normalizes to Home before Search, regardless of whether IG
   was left on Profile; explicit selector candidates with bounded fail-closed lookup.
+- [x] Reels viewer XML identifies `clips_viewer_view_pager`; post feed gestures
+  now target that view (configurable candidate list), not a generic screen region.
+  Add5–8s initial dwell and randomized3–5s between items; cleanly stop near the
+  approved300s trial deadline and report actual attempted visits.
 - [ ] Live verify home-tab selector and post-feed swipe; collect sanitized UI
   hierarchy after opened first post if next-content swipe still fails.
 - [ ] Validate first-result click and post-feed swipe behavior on live IG; verify
@@ -170,7 +174,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **336 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **337 passed**, Ruff/diff checks clean, sdist/wheel build successful.
 Keyword-only worker tests cover loopback Beanstalk protocol, per-job trial cleanup,
 idle, failure/lease loss, replay marker, strict input, CLI opt-in and ten gestures.
 New tests include real loopback mitmweb API simulation, actual outgoing synthetic
