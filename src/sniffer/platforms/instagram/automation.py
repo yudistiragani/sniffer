@@ -40,6 +40,86 @@ def _step(name, action, checkpoint):
     return result
 
 
+def _visible_element(driver, candidates):
+    for strategy, value in candidates:
+        try:
+            for element in driver.find_elements(strategy, value):
+                if element.is_displayed():
+                    return element
+        except Exception as error:
+            if not is_stale(error):
+                raise
+    return None
+
+
+def _wait_for_viewer_closed(driver, viewer_candidates, checkpoint, *, timeout=5.0) -> bool:
+    stop_at = time.monotonic() + timeout
+    while time.monotonic() < stop_at:
+        checkpoint()
+        if _visible_element(driver, viewer_candidates) is None:
+            return True
+        time.sleep(0.25)
+    checkpoint()
+    return _visible_element(driver, viewer_candidates) is None
+
+
+def _normalize_to_home(driver, config: Platform, checkpoint) -> None:
+    viewer_candidates = config.selectors.get("post_feed_viewer") or [
+        ("id", "com.instagram.android:id/clips_viewer_view_pager"),
+        ("id", "com.instagram.android:id/swipeable_nav_view_pager"),
+    ]
+    viewer = _step(
+        "home_normalize.viewer.check",
+        lambda: _visible_element(driver, viewer_candidates),
+        checkpoint,
+    )
+    if viewer is not None:
+        back_candidates = config.selectors.get("post_viewer_back") or [
+            ("accessibility id", "Back"),
+        ]
+        back = _step(
+            "home_normalize.reels_back.find",
+            lambda: _visible_element(driver, back_candidates),
+            checkpoint,
+        )
+        if back is not None:
+            _step(
+                "home_normalize.reels_back.click",
+                lambda: interact(
+                    driver, back_candidates, lambda element: element.click(),
+                    initial=back, name="post_viewer_back",
+                    checkpoint=checkpoint,
+                ),
+                checkpoint,
+            )
+        viewer_closed = (
+            _wait_for_viewer_closed(driver, viewer_candidates, checkpoint)
+            if back is not None
+            else _visible_element(driver, viewer_candidates) is None
+        )
+        if not viewer_closed:
+            logger.warning(
+                "IG step=home_normalize.reels_back status=STILL_OPEN "
+                "fallback=android_back_once",
+            )
+            _step("home_normalize.android_back", driver.back, checkpoint)
+            if not _wait_for_viewer_closed(driver, viewer_candidates, checkpoint):
+                raise RuntimeError("Instagram Reels viewer stayed open after bounded Back actions.")
+
+    home_candidates = config.selectors.get("home_tab") or [
+        ("accessibility id", "Home"),
+        ("accessibility id", "Beranda"),
+        ("id", "com.instagram.android:id/feed_tab"),
+    ]
+    home = _step("home_tab.find", lambda: wait_for(
+        driver, home_candidates, name="home_tab", checkpoint=checkpoint,
+    ), checkpoint)
+    _step("home_tab.click", lambda: interact(
+        driver, home_candidates, lambda element: element.click(),
+        initial=home, name="home_tab.click", checkpoint=checkpoint,
+    ), checkpoint)
+
+
 def _submit_keyword(
     driver, config: Platform, job: SearchJob, checkpoint, *, start_from_home=False,
 ):
@@ -48,18 +128,7 @@ def _submit_keyword(
         return _step(name, action, checkpoint)
 
     if start_from_home:
-        home_candidates = config.selectors.get("home_tab") or [
-            ("accessibility id", "Home"),
-            ("accessibility id", "Beranda"),
-            ("id", "com.instagram.android:id/feed_tab"),
-        ]
-        home = step("home_tab.find", lambda: wait_for(
-            driver, home_candidates, name="home_tab", checkpoint=checkpoint,
-        ))
-        step("home_tab.click", lambda: interact(
-            driver, home_candidates, lambda element: element.click(),
-            initial=home, name="home_tab.click", checkpoint=checkpoint,
-        ))
+        _normalize_to_home(driver, config, checkpoint)
 
     tab = step("search_tab.find", lambda: wait_for(
         driver, config.selectors.get("search_tab", []),

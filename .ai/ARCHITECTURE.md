@@ -34,8 +34,10 @@ PID and exact configured executable during owned cleanup. Each job opens an Appi
 if needed resolves the package launcher and sends ONE explicit am start (no -S),
 then waits up to20s for foreground + one main PID, then attaches the approved
 native REPL trial (300s for keyword worker; standalone collect remains120s),
-starts each job by tapping Home regardless of the prior foreground tab, searches,
-and taps the first clickable result. It swipes the observed/configured post viewer
+starts each job by detecting an open Reels viewer, taps its `Back` accessibility
+control, verifies closure, and uses Android Back once only as bounded fallback;
+then taps Home, searches, and taps the first clickable result. It never respawns
+or force-stops Instagram. It swipes the observed/configured post viewer
 with a5–8s initial dwell and randomized5–7s between up to119 follow-up gestures
 (120 requested visits counting the first result); near the trial deadline it
 stops cleanly with the actual attempted count. Unique post transitions are not

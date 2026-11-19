@@ -658,7 +658,7 @@ schema remains keyword-only. Implemented worker-only 300s REPL/JS limit and
 marks unique-content count unverified because Appium currently has no stable
 post-transition detector. Tests use mocked Appium/Frida; live first-result
 selector/navigation and proxy capture still need operator verification.
-Local validation after content-feed change:342 tests passed, Ruff/diff clean and
+Local validation after content-feed change:344 tests passed, Ruff/diff clean and
 wheel/sdist built; all new UI and extended-duration assertions are mocked/simulated.
 
 User now reports device can be left on Profile and subsequent job may fail, and
@@ -718,3 +718,9 @@ is pending.
 User changed the inter-item human dwell to randomized5–7s (initial first-result
 dwell remains5–8s). Updated `_human_delay`, trial-budget reserve, docs, and
 range tests; still mock-tested only.
+User asks to handle new jobs when IG is left inside Reels. Added preflight:
+detect configured/default `clips_viewer_view_pager`, tap its configured/default
+`Back` accessibility selector, wait up to5s for viewer disappearance, then use
+Android Back once if needed. If viewer persists, fail safely before tapping Home
+or searching. No app spawn, force-stop, reset, or relaunch is used. Added example
+selector and mocked coverage; live hierarchy/navigation still needs deploy check.

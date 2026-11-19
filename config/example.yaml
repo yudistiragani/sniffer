@@ -81,6 +81,8 @@ platforms:
       post_feed_viewer:
         - ["id", "com.instagram.android:id/clips_viewer_view_pager"]
         - ["id", "com.instagram.android:id/swipeable_nav_view_pager"]
+      post_viewer_back:
+        - ["accessibility id", "Back"]
   tiktok:
     package: com.zhiliaoapp.musically
     domains: [tiktok.com, tiktokv.com, tiktokcdn.com]

@@ -16,8 +16,8 @@ class StaleElementReferenceException(Exception):
 
 def search_driver():
     driver = MagicMock()
-    home, tab, field, results, viewer = (
-        MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(),
+    home, tab, field, results, viewer, back = (
+        MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(),
     )
     viewer.id = "post-feed-viewer"
     viewer.rect = {"x": 0, "y": 48, "width": 720, "height": 1016}
@@ -32,11 +32,17 @@ def search_driver():
         ("id", "com.instagram.android:id/action_bar_search_edit_text"): field,
         ("id", "com.instagram.android:id/recycler_view"): results,
         ("id", "com.instagram.android:id/clips_viewer_view_pager"): viewer,
+        ("accessibility id", "Back"): back,
     }
-    driver.find_elements.side_effect = lambda strategy, value: (
-        [mapping[(strategy, value)]] if (strategy, value) in mapping else []
-    )
+    driver._viewer_present = False
+    back.click.side_effect = lambda: setattr(driver, "_viewer_present", False)
+    def find_elements(strategy, value):
+        if (strategy, value) == ("id", "com.instagram.android:id/clips_viewer_view_pager"):
+            return [viewer] if driver._viewer_present else []
+        return [mapping[(strategy, value)]] if (strategy, value) in mapping else []
+    driver.find_elements.side_effect = find_elements
     driver._home_tab = home
+    driver._reels_back = back
     return driver, tab, field
 
 
@@ -68,6 +74,7 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
     first, second = MagicMock(), MagicMock()
     first.is_displayed.return_value = True
     second.is_displayed.return_value = True
+    first.click.side_effect = lambda: setattr(driver, "_viewer_present", True)
     results.find_elements.return_value = [first, second]
     delays = []
     transition_waits = []
@@ -125,6 +132,7 @@ def test_unchanged_item_gets_one_slow_wide_recovery_swipe(settings, monkeypatch)
     )[0]
     first = MagicMock()
     first.is_displayed.return_value = True
+    first.click.side_effect = lambda: setattr(driver, "_viewer_present", True)
     results.find_elements.return_value = [first]
     monkeypatch.setattr(automation, "_human_delay", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(automation, "_dwell", lambda *_args: None)
@@ -188,6 +196,7 @@ def test_keyword_flow_respects_trial_budget_and_finishes_partial_visit(settings,
     )[0]
     first = MagicMock()
     first.is_displayed.return_value = True
+    first.click.side_effect = lambda: setattr(driver, "_viewer_present", True)
     results.find_elements.return_value = [first]
     monkeypatch.setattr(
         automation, "_human_delay", lambda *_args, **_kwargs: False,
@@ -202,6 +211,55 @@ def test_keyword_flow_respects_trial_budget_and_finishes_partial_visit(settings,
     assert result["content_visits_requested"] == 1
     assert result["scrolls"] == 0
     assert result["stop_reason"] == "trial_time_budget"
+
+
+def test_keyword_flow_exits_reels_with_back_before_tapping_home(settings, monkeypatch):
+    driver, _, _ = search_driver()
+    driver._viewer_present = True
+    results = driver.find_elements.side_effect(
+        "id", "com.instagram.android:id/recycler_view"
+    )[0]
+    first = MagicMock()
+    first.is_displayed.return_value = True
+    first.click.side_effect = lambda: setattr(driver, "_viewer_present", True)
+    results.find_elements.return_value = [first]
+    monkeypatch.setattr(automation, "_human_delay", lambda *_args, **_kwargs: False)
+
+    result = automation.search_open_first_post_and_scroll(
+        driver, settings.platforms["instagram"],
+        SearchJob(job_id="reels-reset", keyword="private-keyword", scroll_count=119),
+        lambda: None, deadline=0,
+    )
+
+    driver._reels_back.click.assert_called_once()
+    driver._home_tab.click.assert_called_once()
+    driver.back.assert_not_called()
+    assert result["stop_reason"] == "trial_time_budget"
+
+
+def test_keyword_flow_uses_android_back_once_if_reels_back_did_not_close(settings, monkeypatch):
+    driver, _, _ = search_driver()
+    driver._viewer_present = True
+    driver._reels_back.click.side_effect = None
+    driver.back.side_effect = lambda: setattr(driver, "_viewer_present", False)
+    results = driver.find_elements.side_effect(
+        "id", "com.instagram.android:id/recycler_view"
+    )[0]
+    first = MagicMock()
+    first.is_displayed.return_value = True
+    first.click.side_effect = lambda: setattr(driver, "_viewer_present", True)
+    results.find_elements.return_value = [first]
+    monkeypatch.setattr(automation, "_human_delay", lambda *_args, **_kwargs: False)
+
+    automation.search_open_first_post_and_scroll(
+        driver, settings.platforms["instagram"],
+        SearchJob(job_id="reels-reset-backup", keyword="private-keyword", scroll_count=119),
+        lambda: None, deadline=0,
+    )
+
+    driver._reels_back.click.assert_called_once()
+    driver.back.assert_called_once()
+    driver._home_tab.click.assert_called_once()
 
 
 def test_human_delay_does_not_sleep_with_negative_duration(monkeypatch):

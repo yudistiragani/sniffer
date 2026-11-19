@@ -75,7 +75,13 @@ Search, so the flow does not depend on whether IG was left on Profile or another
 tab. It uses configured `home_tab` selectors or built-in Home/Beranda accessibility
 labels and the Instagram feed-tab ID; if no Home tab is found, the job fails
 rather than searching from an unknown screen. If already foreground, it sends
-no launch command. Appium, Android proxy configuration and CA remain operator-managed. The worker never changes the
+no launch command. If a prior job left IG inside Reels, the worker detects the
+visible `post_feed_viewer`, taps its configured `post_viewer_back` (default
+accessibility label `Back`), and waits up to5s for the viewer to close. If still
+open or the button is unavailable, it sends Android Back once and verifies again;
+if Reels remains open, the job stops rather than searching from the wrong page.
+It never respawns or force-stops Instagram. Appium, Android proxy configuration
+and CA remain operator-managed. The worker never changes the
 ADB forward. On a job it first checks the Frida endpoint; if reachable, it uses
 that server and never stops it. If unreachable, an existing `frida-server` process
 blocks any replacement. Only when no process exists does it start the configured
