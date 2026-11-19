@@ -8,6 +8,9 @@
 - [x] Implement separate opt-in worker-keywords, strict `{keyword}` temporary
   contract, per-job scoped targeted trial (existing120s guards), heartbeat,
   completion marker and no automatic attach retries after runtime failures.
+- [x] User approved auto-open when not foreground, without clearing data/accounts.
+  Launch once via package-restricted launcher; wait bounded20s for foreground and
+  one PID before attach; no force-stop/reset/login/spawn. Live verification pending.
 - [ ] Confirm actual input Beanstalk host/port/tube and final producer schema.
 - [ ] User deploys and tests one reservation; verify job UI/cleanup and independently
   verify the proxy capture/output. Do not claim ACK proves proxy publication.
@@ -142,7 +145,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **311 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **318 passed**, Ruff/diff checks clean, sdist/wheel build successful.
 Keyword-only worker tests cover loopback Beanstalk protocol, per-job trial cleanup,
 idle, failure/lease loss, replay marker, strict input, CLI opt-in and ten gestures.
 New tests include real loopback mitmweb API simulation, actual outgoing synthetic

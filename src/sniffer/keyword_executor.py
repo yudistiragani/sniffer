@@ -16,6 +16,44 @@ from sniffer.runtime import atomic_json, lock
 logger = logging.getLogger(__name__)
 
 
+def ensure_instagram_ready(driver, adb, package, checkpoint, *, timeout=20):
+    """Launch once only if needed, then wait for foreground + one existing main PID."""
+    checkpoint()
+    if package != "com.instagram.android":
+        raise RuntimeError("Keyword worker can only open the configured Instagram package.")
+    if driver.current_package != package:
+        logger.info("IG foreground status=LAUNCH_START mode=android_launcher")
+        # Android's launcher intent, restricted to IG. No am force-stop, pm clear,
+        # Appium reset, Frida spawn, account manipulation or process kill.
+        result = adb.command(
+            "shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER",
+            "1", check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError("Instagram launcher failed; no further launch attempt was made.")
+        checkpoint()
+        logger.info("IG foreground status=LAUNCH_SENT")
+    else:
+        logger.info("IG foreground status=ALREADY_OPEN")
+    deadline = time.monotonic() + timeout
+    while True:
+        checkpoint()
+        foreground = driver.current_package == package
+        result = adb.command("shell", "pidof", package, check=False)
+        pids = result.stdout.split() if result.returncode == 0 else []
+        if result.returncode not in (0, 1):
+            raise RuntimeError("Cannot inspect Instagram PID; no retry or process restart.")
+        if len(pids) > 1 or any(not pid.isdecimal() or int(pid) <= 0 for pid in pids):
+            raise RuntimeError("Instagram main PID is ambiguous; no Frida attach was attempted.")
+        if foreground and len(pids) == 1:
+            checkpoint()
+            logger.info("IG foreground status=READY pid=%s", pids[0])
+            return
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Instagram foreground/main PID not ready before timeout; job stopped.")
+        time.sleep(min(0.25, max(0, deadline - time.monotonic())))
+
+
 def queue_job_id(server_id: str, tube: str, job_id: int) -> str:
     if not isinstance(server_id, str) or not server_id or len(server_id) > 256:
         raise ValueError("Beanstalk server identity is required.")
@@ -55,6 +93,7 @@ def execute_keyword(settings, device_name, job: SearchJob, *, lease, checkpoint)
             requested_scrolls=10,
         )
         logger.info("Keyword job session output=%s", output.resolve())
+        phase = "appium_setup"
         try:
             from sniffer.integrations.appium import session
             from sniffer.integrations.trial_repl import TrialREPL
@@ -63,9 +102,11 @@ def execute_keyword(settings, device_name, job: SearchJob, *, lease, checkpoint)
             with ExitStack() as stack:
                 driver = stack.enter_context(session(device, settings.platforms["instagram"]))
                 checkpoint()
-                if driver.current_package != settings.platforms["instagram"].package:
-                    raise RuntimeError("Instagram must already be open in foreground.")
+                phase = "foreground_and_pid"
+                ensure_instagram_ready(driver, adb, settings.platforms["instagram"].package, checkpoint)
+                phase = "frida_attach"
                 trial = stack.enter_context(TrialREPL(device, output))
+                logger.info("IG targeted_trial status=READY duration_ms=120000")
 
                 def health():
                     checkpoint()
@@ -76,6 +117,7 @@ def execute_keyword(settings, device_name, job: SearchJob, *, lease, checkpoint)
                     checkpoint()
 
                 health()
+                phase = "search_and_scroll"
                 result = search(driver, settings.platforms["instagram"], job, health)
                 if result.get("scrolls") != 10:
                     raise RuntimeError("The ten requested scroll gestures were not completed.")
@@ -85,6 +127,7 @@ def execute_keyword(settings, device_name, job: SearchJob, *, lease, checkpoint)
                     health()
                     time.sleep(min(0.2, max(0, until - time.monotonic())))
                 health()
+                phase = "owned_cleanup"
             # Trial and Appium cleanup must have succeeded before marking/ACK.
             checkpoint()
             result.update(
@@ -97,5 +140,6 @@ def execute_keyword(settings, device_name, job: SearchJob, *, lease, checkpoint)
             atomic_json(completion, {"fingerprint": fingerprint, "result": result})
             return result
         except BaseException as error:
-            atomic_json(output / "failure.json", {"error_type": type(error).__name__})
+            logger.error("IG job status=FAILED phase=%s error_type=%s", phase, type(error).__name__)
+            atomic_json(output / "failure.json", {"phase": phase, "error_type": type(error).__name__})
             raise

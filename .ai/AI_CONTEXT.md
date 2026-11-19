@@ -588,3 +588,17 @@ Local validation:311 tests passed, Ruff/diff clean, wheel/sdist built. Includes
 actual synthetic loopback queue protocol and mocked Appium/Frida lifecycle; no
 real queue/device/proxy commands were run by agent. User's earlier working
 UI/capture smoke does not prove this new per-job worker path.
+
+User reported prior keyword job released/stopped when IG was not launched and
+explicitly approved auto-opening IG per job with NO clear app data or account loss.
+Worker now sends exactly one package-restricted Android launcher monkey intent if
+not foreground, waits at most20s for foreground AND one positive unambiguous main
+PID with heartbeat checkpoints, then attaches trial and waits ready before search.
+Already-foreground app is never launched again. No force-stop, clear/reset,
+credential/login, Frida spawn or retry; Appium noReset/fullReset=false unchanged.
+Failure is recorded as static phase+error type for diagnosis, without raw output.
+Initial app startup traffic may occur before hook, not guaranteed to decrypt.
+Real Android launcher/login/capture behavior remains to be user-tested; agent did
+not operate device, reset data, push code or touch server.
+Local verification:318 tests passed, Ruff/diff clean, wheel/sdist built; launcher
+and PID handling tested with mocks, not a real device.

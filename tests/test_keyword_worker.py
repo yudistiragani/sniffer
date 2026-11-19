@@ -108,6 +108,10 @@ def test_keyword_executor_scopes_trial_to_job_and_no_capture(settings, monkeypat
     adb = MagicMock()
     monkeypatch.setattr(keyword_executor, "ADB", lambda *_: adb)
     monkeypatch.setattr("sniffer.integrations.appium.connect", lambda *_: driver)
+    def ready(*_args):
+        if failure == "foreground":
+            raise RuntimeError("foreground timeout")
+    monkeypatch.setattr(keyword_executor, "ensure_instagram_ready", ready)
     @contextmanager
     def trial(*_):
         events.append("attach")
@@ -167,6 +171,67 @@ def test_keyword_executor_scopes_trial_to_job_and_no_capture(settings, monkeypat
             assert events[-1] == "detach"
         marker = settings.state_dir / "completed" / "instagram-keyword" / f"{job().job_id}.json"
         assert marker.exists() is (failure is None)
+
+
+def test_auto_launch_once_then_wait_for_one_pid_and_foreground():
+    driver = MagicMock()
+    type(driver).current_package = property(
+        lambda self: next(self._foreground, "com.instagram.android")
+    )
+    driver._foreground = iter(["launcher", "launcher", "com.instagram.android"])
+    adb = MagicMock()
+    adb.command.side_effect = [
+        SimpleNamespace(returncode=0, stdout="Events injected: 1"),
+        SimpleNamespace(returncode=1, stdout=""),
+        SimpleNamespace(returncode=0, stdout="1234\n"),
+    ]
+    checkpoint = MagicMock()
+    keyword_executor.ensure_instagram_ready(
+        driver, adb, "com.instagram.android", checkpoint, timeout=3,
+    )
+    assert adb.command.call_args_list[0].args == (
+        "shell", "monkey", "-p", "com.instagram.android", "-c",
+        "android.intent.category.LAUNCHER", "1",
+    )
+    assert sum(call.args[:2] == ("shell", "monkey") for call in adb.command.call_args_list) == 1
+    assert checkpoint.call_count >= 4
+    assert all(not any(x in {"clear", "force-stop", "kill"} for x in call.args)
+               for call in adb.command.call_args_list)
+
+
+def test_already_foreground_does_not_launch_or_reset():
+    driver = MagicMock(current_package="com.instagram.android")
+    adb = MagicMock()
+    adb.command.return_value = SimpleNamespace(returncode=0, stdout="1234\n")
+    keyword_executor.ensure_instagram_ready(driver, adb, "com.instagram.android", lambda: None)
+    adb.command.assert_called_once_with(
+        "shell", "pidof", "com.instagram.android", check=False,
+    )
+    driver.activate_app.assert_not_called()
+
+
+@pytest.mark.parametrize("mode", ["timeout", "ambiguous", "pid_error", "launch_error", "lease_lost"])
+def test_auto_launch_failure_never_attaches_or_retries(mode):
+    driver = MagicMock(current_package="launcher")
+    adb = MagicMock()
+    adb.command.return_value = SimpleNamespace(returncode=0, stdout="")
+    if mode == "ambiguous":
+        driver.current_package = "com.instagram.android"
+        adb.command.return_value.stdout = "12 34"
+    elif mode == "pid_error":
+        driver.current_package = "com.instagram.android"
+        adb.command.return_value.returncode = 2
+    elif mode == "launch_error":
+        adb.command.return_value.returncode = 1
+    def checkpoint():
+        if mode == "lease_lost":
+            raise LeaseLost("lost")
+    with pytest.raises((RuntimeError, LeaseLost)):
+        keyword_executor.ensure_instagram_ready(
+            driver, adb, "com.instagram.android", checkpoint, timeout=0,
+        )
+    assert sum(call.args[:2] == ("shell", "monkey") for call in adb.command.call_args_list) <= 1
+    driver.activate_app.assert_not_called()
 
 
 def test_keyword_replay_conflict_stops_without_device(settings, monkeypatch):

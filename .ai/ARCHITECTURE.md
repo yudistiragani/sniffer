@@ -22,12 +22,17 @@ independently captures and publishes. See `docs/keyword-worker.md`. New explicit
 `worker-keywords --targeted-trial` is separate from the legacy worker and collect.
 Temporary strict input `{keyword:string}`; no producer-supplied scripts/options.
 Queue-server instance ID + tube + numeric job ID form a stable local marker key.
-Worker holds device lease/queue heartbeat; each job opens foreground-only Appium,
-attaches approved native 120s REPL trial, executes10 scrolls and settles3s, unloads
+Worker holds device lease/queue heartbeat; each job opens an Appium session,
+if needed sends ONE package-restricted Android launcher intent and waits up to20s
+for foreground + one main PID, then attaches approved native 120s REPL trial,
+executes10 scrolls and settles3s, unloads
 trial/cleans Appium, checkpoints lease, persists completion, then ACKs. While idle
 there is no attached trial. Runtime error releases/buries then stops the worker;
 lease loss never ACKs. No local recorder/mitmweb access/outgoing results. ACK is UI
 only, not proxy capture/publish verification; no exactly-once across crashes/restarts.
+No force-stop, clear/reset, automatic login or Frida spawn. Startup traffic can
+precede trial readiness; no guarantee early requests are captured. Failure metadata
+records static phase and error type, never raw messages.
 
 Validated baseline: Appium only with proxy off, `--no-capture`, Frida disabled.
 User supplied readable native timeline JSON, then a paired TopSerpQuery

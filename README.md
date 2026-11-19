@@ -125,7 +125,8 @@ MVP command di atas mengelola proses proxy-nya sendiri dan menolak port occupied
 **Flow terbaru: engine mengirim keyword, proxy existing mengirim hasil.** Pakai
 `worker-keywords` dengan input `{"keyword":"prabowo"}`. Frida trial hanya aktif
 saat job berlangsung, kemudian dilepas; worker tidak membaca mitmweb API atau
-mengirim hasil. Konfigurasi input tube/host harus mengikuti engine producer.
+mengirim hasil. IG otomatis dibuka bila belum foreground, tanpa clear data,
+force-stop atau login otomatis. Konfigurasi input tube/host harus mengikuti engine producer.
 Detail, command first-run, ACK dan retry:
 [worker keyword + proxy existing](docs/keyword-worker.md).
 

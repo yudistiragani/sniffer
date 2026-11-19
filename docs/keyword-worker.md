@@ -8,7 +8,8 @@ perform 10 scroll gestures, then unloads its own trial and closes its Appium
 session before acknowledging. The external proxy already configured on Android
 is responsible for capturing and publishing data. This worker does **not**
 start a local proxy, access mitmweb API, parse or push results, create
-`posts.jsonl`, modify Android proxy/CA, or launch/restart Instagram.
+`posts.jsonl`, or modify Android proxy/CA. If Instagram is not foreground, it
+opens it once through its Android launcher intent without clearing data.
 
 An ACK means **UI steps and owned cleanup completed**. It is not evidence that
 HTTP was captured, that the proxy published anything, that the job returned a
@@ -41,7 +42,9 @@ network and authorized queue access.
 
 After deploying this code and configuring the real input queue, set android01's
 existing `frida_endpoint` (known forward `127.0.0.1:27052`) in local YAML.
-IG must be logged in and already open in the foreground. The existing Appium
+IG must already be logged in. If it is closed/backgrounded, the worker sends one
+package-restricted launcher intent and waits up to20s for foreground plus exactly
+one main PID. If already foreground, it sends no launch command. The existing Appium
 server, Android proxy configuration, CA, Frida server and forward must already
 be working. No other worker, Appium job, Frida observer/trial, or manual STF
 interaction on the device may run at the same time.
@@ -69,6 +72,12 @@ the wrapper checks a conservative deadline during automation. It unloads on
 success/failure and never stops the existing frida-server. Existing Appium and
 Frida setup may time out or fail on the live device; local tests are simulations.
 No proxy or result queue status is verified by the worker.
+The launcher does not clear app data, force-stop, kill, change credentials or
+automate login; Appium session capabilities still use noReset=true/fullReset=false.
+Trial attachment happens only after foreground and PID readiness. Startup network
+requests can precede the hook, so initial app traffic may fail until trial ready.
+If the login screen appears, stop and log in manually; successful login is not
+assumed or automated. Real device behavior still requires operator verification.
 
 ## Delivery and failure semantics
 
@@ -94,3 +103,5 @@ No proxy or result queue status is verified by the worker.
 Per-job `session.json`, sanitized `frida.jsonl`, `result.json` or `failure.json`
 are stored under the restricted output directory. Keyword is in session metadata;
 do not commit output. Raw HTTP and post payloads are not saved by this worker.
+Failure metadata includes a non-sensitive phase (`foreground_and_pid`,
+`frida_attach`, `search_and_scroll`, etc.) and exception type, not raw errors.
