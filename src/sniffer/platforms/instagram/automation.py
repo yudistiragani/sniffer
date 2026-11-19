@@ -63,6 +63,20 @@ def _wait_for_viewer_closed(driver, viewer_candidates, checkpoint, *, timeout=5.
     return _visible_element(driver, viewer_candidates) is None
 
 
+def _wait_for_visible_element(
+    driver, candidates, checkpoint, *, timeout=2.0,
+):
+    stop_at = time.monotonic() + timeout
+    while time.monotonic() < stop_at:
+        checkpoint()
+        element = _visible_element(driver, candidates)
+        if element is not None:
+            return element
+        time.sleep(0.25)
+    checkpoint()
+    return _visible_element(driver, candidates)
+
+
 def _normalize_to_home(driver, config: Platform, checkpoint) -> None:
     viewer_candidates = config.selectors.get("post_feed_viewer") or [
         ("id", "com.instagram.android:id/clips_viewer_view_pager"),
@@ -111,9 +125,18 @@ def _normalize_to_home(driver, config: Platform, checkpoint) -> None:
         ("accessibility id", "Beranda"),
         ("id", "com.instagram.android:id/feed_tab"),
     ]
-    home = _step("home_tab.find", lambda: wait_for(
-        driver, home_candidates, name="home_tab", checkpoint=checkpoint,
-    ), checkpoint)
+    home = _step(
+        "home_tab.find",
+        lambda: _wait_for_visible_element(
+            driver, home_candidates, checkpoint, timeout=2,
+        ),
+        checkpoint,
+    )
+    if home is None:
+        _step("home_normalize.android_back_to_tabs", driver.back, checkpoint)
+        home = _step("home_tab.find.after_back", lambda: wait_for(
+            driver, home_candidates, timeout=5, name="home_tab", checkpoint=checkpoint,
+        ), checkpoint)
     _step("home_tab.click", lambda: interact(
         driver, home_candidates, lambda element: element.click(),
         initial=home, name="home_tab.click", checkpoint=checkpoint,

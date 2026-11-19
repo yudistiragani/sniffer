@@ -35,10 +35,17 @@ def search_driver():
         ("accessibility id", "Back"): back,
     }
     driver._viewer_present = False
+    driver._home_visible = True
     back.click.side_effect = lambda: setattr(driver, "_viewer_present", False)
     def find_elements(strategy, value):
         if (strategy, value) == ("id", "com.instagram.android:id/clips_viewer_view_pager"):
             return [viewer] if driver._viewer_present else []
+        if (strategy, value) in {
+            ("accessibility id", "Home"),
+            ("accessibility id", "Beranda"),
+            ("id", "com.instagram.android:id/feed_tab"),
+        }:
+            return [home] if driver._home_visible else []
         return [mapping[(strategy, value)]] if (strategy, value) in mapping else []
     driver.find_elements.side_effect = find_elements
     driver._home_tab = home
@@ -235,6 +242,31 @@ def test_keyword_flow_exits_reels_with_back_before_tapping_home(settings, monkey
     driver._home_tab.click.assert_called_once()
     driver.back.assert_not_called()
     assert result["stop_reason"] == "trial_time_budget"
+
+
+def test_keyword_flow_backs_out_of_search_results_before_home(settings, monkeypatch):
+    driver, _, _ = search_driver()
+    driver._viewer_present = True
+    driver._home_visible = False
+    driver.back.side_effect = lambda: setattr(driver, "_home_visible", True)
+    results = driver.find_elements.side_effect(
+        "id", "com.instagram.android:id/recycler_view"
+    )[0]
+    first = MagicMock()
+    first.is_displayed.return_value = True
+    first.click.side_effect = lambda: setattr(driver, "_viewer_present", True)
+    results.find_elements.return_value = [first]
+    monkeypatch.setattr(automation, "_human_delay", lambda *_args, **_kwargs: False)
+
+    automation.search_open_first_post_and_scroll(
+        driver, settings.platforms["instagram"],
+        SearchJob(job_id="reels-to-search-to-home", keyword="private-keyword", scroll_count=119),
+        lambda: None, deadline=0,
+    )
+
+    driver._reels_back.click.assert_called_once()
+    driver.back.assert_called_once()
+    driver._home_tab.click.assert_called_once()
 
 
 def test_keyword_flow_uses_android_back_once_if_reels_back_did_not_close(settings, monkeypatch):

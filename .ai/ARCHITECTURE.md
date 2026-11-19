@@ -35,9 +35,11 @@ if needed resolves the package launcher and sends ONE explicit am start (no -S),
 then waits up to20s for foreground + one main PID, then attaches the approved
 native REPL trial (300s for keyword worker; standalone collect remains120s),
 starts each job by detecting an open Reels viewer, taps its `Back` accessibility
-control, verifies closure, and uses Android Back once only as bounded fallback;
-then taps Home, searches, and taps the first clickable result. It never respawns
-or force-stops Instagram. It swipes the observed/configured post viewer
+control and verifies closure. If Home is still absent (e.g. Reels Back returned
+to search results), it sends Android Back once more and waits boundedly for Home;
+failure to expose Home stops the job. It then searches and taps the first
+clickable result. It never respawns or force-stops Instagram. It swipes the
+observed/configured post viewer
 with a5–8s initial dwell and randomized5–7s between up to119 follow-up gestures
 (120 requested visits counting the first result); near the trial deadline it
 stops cleanly with the actual attempted count. Unique post transitions are not

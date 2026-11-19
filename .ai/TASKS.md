@@ -36,8 +36,9 @@
 - [x] Keyword worker normalizes to Home before Search, regardless of whether IG
   was left on Profile; explicit selector candidates with bounded fail-closed lookup.
 - [x] If a prior job left IG in Reels, normalize by tapping the viewer's Back
-  control, wait for viewer disappearance, and use Android Back once as fallback;
-  stop safely if it remains. No app respawn/force-stop.
+  control and wait for viewer disappearance. If this returns search results with
+  no Home tab, send Android Back once to return to tabs; stop safely if Home still
+  does not appear. No app respawn/force-stop.
 - [x] Reels viewer XML identifies `clips_viewer_view_pager`; post feed gestures
   now target that view (configurable candidate list), not a generic screen region.
   Add5–8s initial dwell and randomized5–7s between items; cleanly stop near the
@@ -195,7 +196,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **344 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **345 passed**, Ruff/diff checks clean, sdist/wheel build successful.
 Keyword-only worker tests cover loopback Beanstalk protocol, per-job trial cleanup,
 idle, failure/lease loss, replay marker, strict input, CLI opt-in and ten gestures.
 New tests include real loopback mitmweb API simulation, actual outgoing synthetic
