@@ -42,8 +42,9 @@ network and authorized queue access.
 
 After deploying this code and configuring the real input queue, set android01's
 existing `frida_endpoint` (known forward `127.0.0.1:27052`) in local YAML.
-IG must already be logged in. If it is closed/backgrounded, the worker sends one
-package-restricted launcher intent and waits up to20s for foreground plus exactly
+IG must already be logged in. If it is closed/backgrounded, the worker resolves
+the installed Instagram launcher activity, checks the component belongs to the
+Instagram package, then sends one `am start` without `-S`. It waits up to20s for foreground plus exactly
 one main PID. If already foreground, it sends no launch command. The existing Appium
 server, Android proxy configuration, CA, Frida server and forward must already
 be working. No other worker, Appium job, Frida observer/trial, or manual STF
@@ -72,7 +73,10 @@ the wrapper checks a conservative deadline during automation. It unloads on
 success/failure and never stops the existing frida-server. Existing Appium and
 Frida setup may time out or fail on the live device; local tests are simulations.
 No proxy or result queue status is verified by the worker.
-The launcher does not clear app data, force-stop, kill, change credentials or
+The earlier `monkey` launch failed on the user's emulator with a physical-key
+message; `cmd package resolve-activity` identified the launcher but `am start`
+has not yet been tested live. Resolution/launch failures stop without another
+attempt. The launcher does not clear app data, force-stop, kill, change credentials or
 automate login; Appium session capabilities still use noReset=true/fullReset=false.
 Trial attachment happens only after foreground and PID readiness. Startup network
 requests can precede the hook, so initial app traffic may fail until trial ready.

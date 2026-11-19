@@ -602,3 +602,17 @@ Real Android launcher/login/capture behavior remains to be user-tested; agent di
 not operate device, reset data, push code or touch server.
 Local verification:318 tests passed, Ruff/diff clean, wheel/sdist built; launcher
 and PID handling tested with mocks, not a real device.
+
+User tested job298236: LAUNCH_START then failure foreground_and_pid before attach,
+job released/worker stopped. Operator's manual `monkey` reported
+"SYS_KEYS has no physical keys", process existed but launcher remained foreground.
+User's read-only `cmd package resolve-activity --brief` returned
+com.instagram.android/.activity.MainTabActivity. Changed worker to dynamically
+resolve Android MAIN/LAUNCHER via cmd package, validate exactly one shell-safe
+component belonging to com.instagram.android, then invoke am start -n without
+-S once. Refuse missing/ambiguous/foreign/malicious component; no fallback retry,
+force-stop, clear data, credentials, APK/OS changes or Frida spawn. Wait for
+foreground+single PID before attach as before. Actual am start is unverified on
+device; user must deploy and test; agent made no remote/device changes.
+Local verification after launcher replacement:323 tests passed, Ruff/diff clean,
+wheel/sdist built. Activity resolution/start tests are mocks, not live Android.

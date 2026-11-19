@@ -181,7 +181,11 @@ def test_auto_launch_once_then_wait_for_one_pid_and_foreground():
     driver._foreground = iter(["launcher", "launcher", "com.instagram.android"])
     adb = MagicMock()
     adb.command.side_effect = [
-        SimpleNamespace(returncode=0, stdout="Events injected: 1"),
+        SimpleNamespace(returncode=0, stdout=(
+            "priority=0 preferredOrder=0 match=0x108000\n"
+            "com.instagram.android/.activity.MainTabActivity\n"
+        )),
+        SimpleNamespace(returncode=0, stdout="Starting: Intent"),
         SimpleNamespace(returncode=1, stdout=""),
         SimpleNamespace(returncode=0, stdout="1234\n"),
     ]
@@ -190,10 +194,15 @@ def test_auto_launch_once_then_wait_for_one_pid_and_foreground():
         driver, adb, "com.instagram.android", checkpoint, timeout=3,
     )
     assert adb.command.call_args_list[0].args == (
-        "shell", "monkey", "-p", "com.instagram.android", "-c",
-        "android.intent.category.LAUNCHER", "1",
+        "shell", "cmd", "package", "resolve-activity", "--brief",
+        "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER",
+        "com.instagram.android",
     )
-    assert sum(call.args[:2] == ("shell", "monkey") for call in adb.command.call_args_list) == 1
+    assert adb.command.call_args_list[1].args == (
+        "shell", "am", "start", "-n", "com.instagram.android/.activity.MainTabActivity",
+        "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER",
+    )
+    assert sum(call.args[:3] == ("shell", "am", "start") for call in adb.command.call_args_list) == 1
     assert checkpoint.call_count >= 4
     assert all(not any(x in {"clear", "force-stop", "kill"} for x in call.args)
                for call in adb.command.call_args_list)
@@ -210,19 +219,38 @@ def test_already_foreground_does_not_launch_or_reset():
     driver.activate_app.assert_not_called()
 
 
-@pytest.mark.parametrize("mode", ["timeout", "ambiguous", "pid_error", "launch_error", "lease_lost"])
+@pytest.mark.parametrize("mode", [
+    "timeout", "ambiguous", "pid_error", "launch_error", "launch_stdout_error", "lease_lost",
+    "resolve_missing", "resolve_other", "resolve_injection", "resolve_ambiguous",
+])
 def test_auto_launch_failure_never_attaches_or_retries(mode):
     driver = MagicMock(current_package="launcher")
     adb = MagicMock()
-    adb.command.return_value = SimpleNamespace(returncode=0, stdout="")
+    resolved = "com.instagram.android/.activity.MainTabActivity"
+    responses = [
+        SimpleNamespace(returncode=0, stdout=resolved),
+        SimpleNamespace(returncode=0, stdout="Starting: Intent"),
+        SimpleNamespace(returncode=1, stdout=""),
+    ]
     if mode == "ambiguous":
         driver.current_package = "com.instagram.android"
-        adb.command.return_value.stdout = "12 34"
+        responses = [SimpleNamespace(returncode=0, stdout="12 34")]
     elif mode == "pid_error":
         driver.current_package = "com.instagram.android"
-        adb.command.return_value.returncode = 2
+        responses = [SimpleNamespace(returncode=2, stdout="")]
     elif mode == "launch_error":
-        adb.command.return_value.returncode = 1
+        responses[1].returncode = 1
+    elif mode == "launch_stdout_error":
+        responses[1].stdout = "Error: Activity not started"
+    elif mode == "resolve_missing":
+        responses[0].stdout = "No activity found"
+    elif mode == "resolve_other":
+        responses[0].stdout = "com.other/.Main"
+    elif mode == "resolve_injection":
+        responses[0].stdout = resolved + ";clear data"
+    elif mode == "resolve_ambiguous":
+        responses[0].stdout = resolved + "\n" + resolved
+    adb.command.side_effect = responses
     def checkpoint():
         if mode == "lease_lost":
             raise LeaseLost("lost")
@@ -230,7 +258,12 @@ def test_auto_launch_failure_never_attaches_or_retries(mode):
         keyword_executor.ensure_instagram_ready(
             driver, adb, "com.instagram.android", checkpoint, timeout=0,
         )
-    assert sum(call.args[:2] == ("shell", "monkey") for call in adb.command.call_args_list) <= 1
+    launches = [call for call in adb.command.call_args_list if call.args[:3] == ("shell", "am", "start")]
+    assert len(launches) <= 1
+    if mode.startswith("resolve_") or mode == "lease_lost":
+        assert not launches
+    assert all(not any(arg in {"-S", "force-stop", "clear", "kill"} for arg in call.args)
+               for call in adb.command.call_args_list)
     driver.activate_app.assert_not_called()
 
 

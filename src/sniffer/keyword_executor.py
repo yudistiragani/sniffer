@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 from contextlib import ExitStack
 
@@ -23,13 +24,31 @@ def ensure_instagram_ready(driver, adb, package, checkpoint, *, timeout=20):
         raise RuntimeError("Keyword worker can only open the configured Instagram package.")
     if driver.current_package != package:
         logger.info("IG foreground status=LAUNCH_START mode=android_launcher")
-        # Android's launcher intent, restricted to IG. No am force-stop, pm clear,
-        # Appium reset, Frida spawn, account manipulation or process kill.
-        result = adb.command(
-            "shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER",
-            "1", check=False,
+        # Resolve dynamically; accept only a single shell-safe component in IG.
+        resolved = adb.command(
+            "shell", "cmd", "package", "resolve-activity", "--brief",
+            "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER",
+            package, check=False,
         )
-        if result.returncode != 0:
+        checkpoint()
+        components = [
+            line.strip() for line in resolved.stdout.splitlines()
+            if re.fullmatch(
+                r"com\.instagram\.android/(?:\.[A-Za-z_][A-Za-z0-9_.]*"
+                r"|com\.instagram\.android\.[A-Za-z_][A-Za-z0-9_.]*)",
+                line.strip(),
+            )
+        ]
+        if resolved.returncode != 0 or len(components) != 1:
+            raise RuntimeError("Instagram launcher activity could not be resolved uniquely.")
+        logger.info("IG foreground status=LAUNCHER_RESOLVED")
+        # am start without -S; no force-stop, clear/reset, Frida spawn or kill.
+        result = adb.command(
+            "shell", "am", "start", "-n", components[0],
+            "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER",
+            check=False,
+        )
+        if result.returncode != 0 or re.search(r"(?im)^\s*(?:error|exception):", result.stdout):
             raise RuntimeError("Instagram launcher failed; no further launch attempt was made.")
         checkpoint()
         logger.info("IG foreground status=LAUNCH_SENT")

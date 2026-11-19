@@ -23,7 +23,8 @@ independently captures and publishes. See `docs/keyword-worker.md`. New explicit
 Temporary strict input `{keyword:string}`; no producer-supplied scripts/options.
 Queue-server instance ID + tube + numeric job ID form a stable local marker key.
 Worker holds device lease/queue heartbeat; each job opens an Appium session,
-if needed sends ONE package-restricted Android launcher intent and waits up to20s
+if needed resolves the package launcher and sends ONE explicit am start (no -S),
+then waits up to20s
 for foreground + one main PID, then attaches approved native 120s REPL trial,
 executes10 scrolls and settles3s, unloads
 trial/cleans Appium, checkpoints lease, persists completion, then ACKs. While idle
