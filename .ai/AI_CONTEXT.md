@@ -679,3 +679,10 @@ swipeGesture` failed with `ValueError` after about3.9s (raw exception omitted fr
 logs). Changed gesture input to explicit integer coordinates from `viewer.rect`
 instead of `elementId`, constrained to the viewer bounds. This change is mock-
 tested only and requires redeploy/live verification.
+Next operator run (07:19) completed swipes #1 and #2, then failed #3 with
+`ValueError`. Updated automation to reacquire the viewer element and fresh bounds
+before every swipe because IG can replace the pager node on content transition.
+Added stage-specific safe log labels (`post_feed.viewer.find.N`,
+`post_feed.viewer.bounds.N`, `post_feed.gesture.N`) to localize future errors
+without logging arbitrary exception text or UI content. No live device actions
+were performed while applying this change.

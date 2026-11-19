@@ -42,6 +42,9 @@
 - [x] Operator log showed `ValueError` from `mobile: swipeGesture` after viewer
   discovery. Switched from `elementId` to explicit coordinates from viewer bounds;
   still requires redeploy and live verification.
+- [x] Follow-up run completed two coordinate swipes; third failed. Viewer and its
+  bounds are now reacquired before every swipe, with separate safe log steps for
+  viewer lookup, bounds, and gesture dispatch to localize any next failure.
 - [ ] Live verify home-tab selector and post-feed swipe; collect sanitized UI
   hierarchy after opened first post if next-content swipe still fails.
 - [ ] Validate first-result click and post-feed swipe behavior on live IG; verify

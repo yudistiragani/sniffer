@@ -31,9 +31,11 @@ visible clickable result and performs at most119 upward swipes, with the existin
 first-result dwell of5–8s and randomized3–5s between follow-up swipes, for a
 ceiling of120 requested content visits including the first post. It targets the
 observed Reels `clips_viewer_view_pager` (or configured `post_feed_viewer`) rather
-than swiping the whole screen. Gesture coordinates come from the viewer's Appium
-bounds rather than its element ID, to avoid server-side `swipeGesture` ID
-validation errors. The existing300s trial is a hard job bound; if
+than swiping the whole screen. Before each swipe, it reacquires the viewer and
+reads fresh Appium bounds because Instagram may replace the pager after a
+transition. Gesture coordinates come from those bounds rather than its element
+ID, to avoid server-side `swipeGesture` ID validation errors. The existing300s
+trial is a hard job bound; if
 time is nearly exhausted, the worker stops cleanly with fewer visits. The UI does
 not expose a verified unique-post counter here: swipes/visits are attempts, not
 proof that120 distinct posts loaded. The producer contract and tube name remain

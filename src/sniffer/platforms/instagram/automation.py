@@ -118,18 +118,28 @@ def _human_delay(
     return True
 
 
-def _swipe_viewer_up(driver, viewer) -> None:
-    """Swipe within the selected viewer bounds, avoiding Appium elementId parsing."""
+def _viewer_bounds(viewer) -> dict[str, int]:
     rect = viewer.rect
-    left = int(rect["x"])
-    top = int(rect["y"])
-    width = int(rect["width"])
-    height = int(rect["height"])
+    bounds = {
+        "left": int(rect["x"]),
+        "top": int(rect["y"]),
+        "width": int(rect["width"]),
+        "height": int(rect["height"]),
+    }
+    if bounds["width"] <= 0 or bounds["height"] <= 0:
+        raise RuntimeError("Instagram post viewer has invalid gesture bounds.")
+    return bounds
+
+
+def _swipe_viewer_up(driver, bounds: dict[str, int]) -> None:
+    """Swipe within the selected viewer bounds, avoiding Appium elementId parsing."""
+    width = bounds["width"]
+    height = bounds["height"]
     if width <= 0 or height <= 0:
         raise RuntimeError("Instagram post viewer has invalid gesture bounds.")
     driver.execute_script("mobile: swipeGesture", {
-        "left": left,
-        "top": top,
+        "left": bounds["left"],
+        "top": bounds["top"],
         "width": width,
         "height": height,
         "direction": "up",
@@ -209,7 +219,7 @@ def search_open_first_post_and_scroll(
         )
         raise
 
-    viewer = _step("post_feed.viewer.find", lambda: wait_for(
+    _step("post_feed.viewer.find", lambda: wait_for(
         driver, viewer_candidates, name="post_feed_viewer", checkpoint=checkpoint,
     ), checkpoint)
     # Use the selected viewer's bounds. Some Appium server versions reject an
@@ -226,7 +236,26 @@ def search_open_first_post_and_scroll(
         started = time.monotonic()
         logger.info("IG step=post_feed.scroll.%s status=START", index + 1)
         try:
-            _swipe_viewer_up(driver, viewer)
+            # Instagram may replace the pager node when it advances to another
+            # result. Re-find it and read fresh bounds for every gesture.
+            viewer = _step(
+                f"post_feed.viewer.find.{index + 1}",
+                lambda: wait_for(
+                    driver, viewer_candidates, name="post_feed_viewer",
+                    checkpoint=checkpoint,
+                ),
+                checkpoint,
+            )
+            bounds = _step(
+                f"post_feed.viewer.bounds.{index + 1}",
+                lambda element=viewer: _viewer_bounds(element),
+                checkpoint,
+            )
+            _step(
+                f"post_feed.gesture.{index + 1}",
+                lambda current_bounds=bounds: _swipe_viewer_up(driver, current_bounds),
+                checkpoint,
+            )
             scrolls += 1
             if not _human_delay(checkpoint, deadline=deadline, first=False):
                 stop_reason = "trial_time_budget"
