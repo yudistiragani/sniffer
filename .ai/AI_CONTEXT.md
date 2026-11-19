@@ -670,9 +670,12 @@ not live-verified. If this still does not advance after Home normalization, need
 sanitized UI hierarchy from the opened first-post screen to identify the actual
 viewer/scroll target before changing gestures. Home lookup is mocked locally only.
 User supplied a hierarchy showing `com.instagram.android:id/clips_viewer_view_pager`
-as the scrollable Reels ViewPager. Worker now waits for that viewer (or configured
-`post_feed_viewer`) and targets it with a single upward swipe per next item, rather
-than the generic screen gesture. User requested human pacing: random5–8s after
-opening first result, then random3–5s between items. Within approved300s trial,
-it stops cleanly before expiry and records actual attempts, so max120 is a cap,
-not a guarantee. This click/gesture/delay behavior is still only mock-tested.
+as the scrollable Reels ViewPager. Worker waits for that viewer (or configured
+`post_feed_viewer`). User requested human pacing: random5–8s after opening first
+result, then random3–5s between items. Within approved300s trial, it stops cleanly
+before expiry and records actual attempts, so max120 is a cap, not a guarantee.
+The 2026-11-19 operator run opened result and found viewer, but `mobile:
+swipeGesture` failed with `ValueError` after about3.9s (raw exception omitted from
+logs). Changed gesture input to explicit integer coordinates from `viewer.rect`
+instead of `elementId`, constrained to the viewer bounds. This change is mock-
+tested only and requires redeploy/live verification.

@@ -118,6 +118,25 @@ def _human_delay(
     return True
 
 
+def _swipe_viewer_up(driver, viewer) -> None:
+    """Swipe within the selected viewer bounds, avoiding Appium elementId parsing."""
+    rect = viewer.rect
+    left = int(rect["x"])
+    top = int(rect["y"])
+    width = int(rect["width"])
+    height = int(rect["height"])
+    if width <= 0 or height <= 0:
+        raise RuntimeError("Instagram post viewer has invalid gesture bounds.")
+    driver.execute_script("mobile: swipeGesture", {
+        "left": left,
+        "top": top,
+        "width": width,
+        "height": height,
+        "direction": "up",
+        "percent": 0.75,
+    })
+
+
 def search(driver, config: Platform, job: SearchJob, checkpoint: Callable[[], None]) -> dict:
     _submit_keyword(driver, config, job, checkpoint)
     for index in range(job.scroll_count):
@@ -193,8 +212,8 @@ def search_open_first_post_and_scroll(
     viewer = _step("post_feed.viewer.find", lambda: wait_for(
         driver, viewer_candidates, name="post_feed_viewer", checkpoint=checkpoint,
     ), checkpoint)
-    # Use the viewer itself as the gesture target. The observed IG Reels hierarchy
-    # exposes clips_viewer_view_pager as the vertically scrollable ViewPager.
+    # Use the selected viewer's bounds. Some Appium server versions reject an
+    # elementId for mobile: swipeGesture with ValueError; explicit bounds avoid it.
     scrolls = 0
     stop_reason = "content_limit"
     if not _human_delay(checkpoint, deadline=deadline, first=True):
@@ -207,9 +226,7 @@ def search_open_first_post_and_scroll(
         started = time.monotonic()
         logger.info("IG step=post_feed.scroll.%s status=START", index + 1)
         try:
-            driver.execute_script("mobile: swipeGesture", {
-                "elementId": viewer.id, "direction": "up", "percent": 0.75,
-            })
+            _swipe_viewer_up(driver, viewer)
             scrolls += 1
             if not _human_delay(checkpoint, deadline=deadline, first=False):
                 stop_reason = "trial_time_budget"

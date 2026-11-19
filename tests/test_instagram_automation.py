@@ -20,6 +20,7 @@ def search_driver():
         MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(),
     )
     viewer.id = "post-feed-viewer"
+    viewer.rect = {"x": 0, "y": 48, "width": 720, "height": 1016}
     for element in (home, tab, field, results, viewer):
         element.is_displayed.return_value = True
     field.get_attribute.return_value = "private-keyword"
@@ -88,7 +89,8 @@ def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(setting
     assert driver.execute_script.call_count == 119
     assert all(
         call.args == ("mobile: swipeGesture", {
-            "elementId": "post-feed-viewer", "direction": "up", "percent": 0.75,
+            "left": 0, "top": 48, "width": 720, "height": 1016,
+            "direction": "up", "percent": 0.75,
         })
         for call in driver.execute_script.call_args_list
     )

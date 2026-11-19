@@ -39,6 +39,9 @@
   now target that view (configurable candidate list), not a generic screen region.
   Add5–8s initial dwell and randomized3–5s between items; cleanly stop near the
   approved300s trial deadline and report actual attempted visits.
+- [x] Operator log showed `ValueError` from `mobile: swipeGesture` after viewer
+  discovery. Switched from `elementId` to explicit coordinates from viewer bounds;
+  still requires redeploy and live verification.
 - [ ] Live verify home-tab selector and post-feed swipe; collect sanitized UI
   hierarchy after opened first post if next-content swipe still fails.
 - [ ] Validate first-result click and post-feed swipe behavior on live IG; verify
