@@ -1,4 +1,4 @@
-"""One opt-in native official-REPL trial, bounded120s; no server bootstrap/retry."""
+"""One opt-in native official-REPL trial with an explicit bounded duration."""
 
 from __future__ import annotations
 
@@ -16,8 +16,11 @@ from sniffer.device import ADB
 
 
 class TrialREPL:
-    def __init__(self, device, output):
+    def __init__(self, device, output, *, duration_seconds=120):
+        if duration_seconds not in {120, 300}:
+            raise ValueError("Targeted trial duration must be 120 or 300 seconds.")
         self.device, self.output = device, output
+        self.duration_seconds = duration_seconds
         self.process = None
         self.reader = None
         self.ready = threading.Event()
@@ -31,7 +34,7 @@ class TrialREPL:
                 importlib.metadata.version("frida") != "17.27.0"
                 or importlib.metadata.version("frida-tools") != "14.13.2"
             ):
-                raise RuntimeError("Collect trial requires pinned Frida17.27.0/frida-tools14.13.2.")
+                raise RuntimeError("Trial requires pinned Frida17.27.0/frida-tools14.13.2.")
             if not self.device.frida_endpoint:
                 raise ValueError("Set the explicit existing Frida endpoint; no server is started.")
             result = ADB(self.device.adb_serial).command(
@@ -45,15 +48,17 @@ class TrialREPL:
             ).read_text(encoding="utf-8")
             script = self.output / "collect-trial.js"
             script.write_text(
-                '"use strict";\nglobalThis.__snifferTrialDurationMs = 120000;\n' + source,
+                f'"use strict";\nglobalThis.__snifferTrialDurationMs = {self.duration_seconds * 1000};\n'
+                + source,
                 encoding="utf-8",
             )
-            self.deadline = time.monotonic() + 118
+            self.deadline = time.monotonic() + self.duration_seconds - 2
             self.process = subprocess.Popen(
                 [
                     sys.executable, "-u", "-m", "frida_tools.repl",
                     "-H", self.device.frida_endpoint, "-p", pids[0], "--realm", "native",
-                    "-q", "-t", "120", "--exit-on-error", "--no-auto-reload", "-l", str(script),
+                    "-q", "-t", str(self.duration_seconds),
+                    "--exit-on-error", "--no-auto-reload", "-l", str(script),
                 ],
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                 text=True, encoding="utf-8", errors="replace",
@@ -103,7 +108,7 @@ class TrialREPL:
             if event == "fb_trial.refused":
                 self.failure = "trial_refused"
             elif event == "fb_trial.ready":
-                if payload.get("durationMs") != 120000:
+                if payload.get("durationMs") != self.duration_seconds * 1000:
                     self.failure = "trial_duration_mismatch"
                 else:
                     self.ready.set()
@@ -116,7 +121,9 @@ class TrialREPL:
         if self.process is None or self.process.poll() is not None:
             raise RuntimeError("Frida REPL exited; stop and inspect server/app before another run.")
         if time.monotonic() >= self.deadline:
-            raise RuntimeError("Targeted trial120s window expired; automation stopped.")
+            raise RuntimeError(
+                f"Targeted trial {self.duration_seconds}s window expired; automation stopped."
+            )
 
     def __exit__(self, *_):
         self.closing = True

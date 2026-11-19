@@ -433,7 +433,10 @@ def test_repl_expiry_and_exit_are_not_retried(tmp_path):
         trial.check()
 
 
-def test_repl_owns_only_child_and_uses_official_pinned_native_cli(tmp_path, monkeypatch):
+@pytest.mark.parametrize("duration_seconds", [120, 300])
+def test_repl_owns_only_child_and_uses_official_pinned_native_cli(
+    tmp_path, monkeypatch, duration_seconds,
+):
     device = SimpleNamespace(adb_serial="synthetic", frida_endpoint="127.0.0.1:27052")
     monkeypatch.setattr(
         "sniffer.integrations.trial_repl.importlib.metadata.version",
@@ -442,12 +445,12 @@ def test_repl_owns_only_child_and_uses_official_pinned_native_cli(tmp_path, monk
     adb = MagicMock()
     adb.command.return_value = SimpleNamespace(stdout="12345\n", returncode=0)
     monkeypatch.setattr("sniffer.integrations.trial_repl.ADB", lambda _: adb)
-    trial = TrialREPL(device, tmp_path)
+    trial = TrialREPL(device, tmp_path, duration_seconds=duration_seconds)
     process = MagicMock()
     process.poll.return_value = None
     process.stdout.readline.side_effect = [
         "message: " + repr({"type": "send", "payload": {
-            "event": "fb_trial.ready", "durationMs": 120000,
+            "event": "fb_trial.ready", "durationMs": duration_seconds * 1000,
         }}) + " data: None\n", "",
     ]
     popen = MagicMock(return_value=process)
@@ -457,9 +460,13 @@ def test_repl_owns_only_child_and_uses_official_pinned_native_cli(tmp_path, monk
     args = popen.call_args.args[0]
     assert "frida_tools.repl" in args and "--no-auto-reload" in args
     assert args[args.index("--realm") + 1] == "native"
+    assert args[args.index("-t") + 1] == str(duration_seconds)
     assert args[args.index("-p") + 1] == "12345"
     assert "-f" not in args and "--eternalize" not in args
-    assert "__snifferTrialDurationMs = 120000" in (tmp_path / "collect-trial.js").read_text()
+    assert (
+        f"__snifferTrialDurationMs = {duration_seconds * 1000}"
+        in (tmp_path / "collect-trial.js").read_text()
+    )
     process.terminate.assert_called_once()
 
 

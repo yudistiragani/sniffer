@@ -3,9 +3,10 @@
 ## Responsibility
 
 The producer engine puts a job in the configured **input** tube. The worker
-reserves it, opens one bounded targeted Frida trial, uses Appium to search and
-perform 10 scroll gestures, then unloads its own trial and closes its Appium
-session before acknowledging. The external proxy already configured on Android
+reserves it, opens one bounded targeted Frida trial, uses Appium to search, opens
+the first clickable result, then swipes through at most120 total content visits
+(first result counts as visit1; at most119 follow-up swipes). It then unloads its
+trial and closes its Appium session before acknowledging. The external proxy already configured on Android
 is responsible for capturing and publishing data. This worker does **not**
 start a local proxy, access mitmweb API, parse or push results, create
 `posts.jsonl`, or modify Android proxy/CA. If Instagram is not foreground, it
@@ -25,10 +26,13 @@ Each Beanstalk job body is a JSON object with exactly one string field:
 
 Keyword must contain 1–200 characters after trimming. Empty/non-string keywords,
 invalid JSON and extra fields (including job-supplied script paths, device IDs
-or scroll count) are invalid and buried. Search always requests 10 gestures
-with the existing 1500ms scroll pause. Ten gestures do not guarantee 10 network
-requests or 10 result pages. The producer contract and tube name remain to be
-confirmed; do not use the proxy's result tube as an input tube.
+or scroll count) are invalid and buried. After Enter, the worker taps the first
+visible clickable result and performs at most119 upward swipes, with the existing
+1500ms pause, for a ceiling of120 requested content visits including the first
+post. The UI does not expose a verified unique-post counter here: swipes and
+visits are requested, not proof that120 distinct posts loaded. The producer
+contract and tube name remain to be confirmed; do not use the proxy's result
+tube as an input tube.
 
 Queue host/port and `instagram_tube` come from `beanstalk` in local YAML.
 `SNIFFER_BEANSTALK_HOST` / `SNIFFER_BEANSTALK_PORT` can override host/port.
@@ -83,7 +87,9 @@ verify foreground and one main PID, then attach the official pinned Frida REPL.
 The trial attaches only to one
 already-running main PID in native realm, disables auto-reload, and waits for
 `fb_trial.ready`. The existing exact IG build/ABI, host, original system trust
-and typed-pinning-exception guards remain. Its internal deadline is120 seconds;
+and typed-pinning-exception guards remain. The keyword worker uses an approved
+300-second trial deadline to allow the longer feed run; standalone collect stays
+at120 seconds. The internal guard remains aligned with the REPL timeout;
 the wrapper checks a conservative deadline during automation. It unloads on
 success/failure and never stops a pre-existing Frida server. Server lifecycle
 tests are local simulations, not live device verification.

@@ -2,8 +2,9 @@
 
 ## Active priority (latest direction)
 
-- User corrected flow: engine pushes keyword input job; worker executes UI+10
-  scroll, external proxy already captures and pushes results. No mitmweb API/
+- User corrected flow: engine pushes keyword input job; worker searches, opens
+  first result, and swipes through up to120 content visits; external proxy already
+  captures and pushes results. No mitmweb API/
   tunnel/local post output/outgoing publishing in new worker.
 - [x] Implement separate opt-in worker-keywords, strict `{keyword}` temporary
   contract, per-job scoped targeted trial (existing120s guards), heartbeat,
@@ -28,6 +29,12 @@
   accepts argv0-only cmdline for the exact owned PID.
 - [ ] Operator to stop the already-running wrong-port PID after verifying its
   identity, deploy fix, and validate endpoint then one controlled job.
+- [x] User changed keyword flow: after submit, open first result and swipe through
+  max120 requested content visits (initial result counts as1); accepted a 300s
+  per-job trial bound. Worker swipes at most119 times; unique item loading is not
+  verified by UI, and original producer schema stays `{keyword}`.
+- [ ] Validate first-result click and post-feed swipe behavior on live IG; verify
+  the external proxy independently. Do not interpret120 gestures as120 unique posts.
 
 ### Earlier one-shot collect direction (superseded for keyword worker)
 
@@ -159,7 +166,7 @@
 The suite includes a real mitmdump -> local HTTP endpoint smoke test
 and greenstalk -> local synthetic Beanstalk-protocol server. Most device/Docker/UI/
 Frida tests are mocks. Wheel packaging includes JavaScript resources.
-Latest full run: **332 passed**, Ruff/diff checks clean, sdist/wheel build successful.
+Latest full run: **336 passed**, Ruff/diff checks clean, sdist/wheel build successful.
 Keyword-only worker tests cover loopback Beanstalk protocol, per-job trial cleanup,
 idle, failure/lease loss, replay marker, strict input, CLI opt-in and ten gestures.
 New tests include real loopback mitmweb API simulation, actual outgoing synthetic

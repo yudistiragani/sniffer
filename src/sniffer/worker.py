@@ -9,7 +9,12 @@ from pydantic import ValidationError
 from sniffer.device import resolve
 from sniffer.executor import execute
 from sniffer.integrations.beanstalk import Heartbeat, LeaseLost, connect
-from sniffer.jobs import InvalidJob, KeywordJob, SearchJob
+from sniffer.jobs import (
+    KEYWORD_POST_SCROLLS,
+    InvalidJob,
+    KeywordJob,
+    SearchJob,
+)
 from sniffer.runtime import lock
 from sniffer.settings import Settings
 
@@ -93,7 +98,7 @@ def process_keyword_reserved(client, raw, settings, device, lease, *, server_id,
         data = KeywordJob.model_validate_json(raw.body)
         job = SearchJob(
             job_id=queue_job_id(server_id, settings.beanstalk.instagram_tube, raw.id),
-            keyword=data.keyword, scroll_count=10,
+            keyword=data.keyword, scroll_count=KEYWORD_POST_SCROLLS,
         )
         with Heartbeat(client, raw, settings.beanstalk, stats["ttr"]) as heartbeat:
             kwargs = {"lease": lease, "checkpoint": heartbeat.check}

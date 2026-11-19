@@ -7,7 +7,7 @@
         "i.instagram.com", "i-fallback.instagram.com",
         "instagram.fcgk16-1.fna.fbcdn.net"
     ]);
-    // Default stays30s. Only the separately approved collect mode may request120s.
+    // Default stays30s. Bounded callers may explicitly request120s or300s.
     const durationMs = globalThis.__snifferTrialDurationMs === undefined
         ? 30000 : globalThis.__snifferTrialDurationMs;
     const maxEvents = 100;
@@ -45,7 +45,7 @@
         return overload.returnType.className === returnType && overload.implementation == null;
     }
 
-    if (durationMs !== 30000 && durationMs !== 120000) {
+    if (durationMs !== 30000 && durationMs !== 120000 && durationMs !== 300000) {
         emit("fb_trial.refused", {reason: "duration_not_approved"});
         return;
     }

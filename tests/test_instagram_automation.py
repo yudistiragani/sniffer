@@ -5,6 +5,7 @@ from xml.etree import ElementTree
 import pytest
 
 from sniffer.jobs import SearchJob
+from sniffer.platforms.instagram import automation
 from sniffer.platforms.instagram.automation import search
 from sniffer.platforms.instagram.selectors import interact, wait_for
 
@@ -48,6 +49,38 @@ def test_search_logs_each_input_operation_without_keyword(settings, caplog):
         assert f"step={name} status=START" in caplog.text
         assert f"step={name} status=END" in caplog.text
     assert job.keyword not in caplog.text
+
+
+def test_keyword_flow_opens_first_result_then_caps_at_120_total_contents(settings, monkeypatch):
+    driver, _, _ = search_driver()
+    results = driver.find_elements.side_effect(
+        "id", "com.instagram.android:id/recycler_view"
+    )[0]
+    first, second = MagicMock(), MagicMock()
+    first.is_displayed.return_value = True
+    second.is_displayed.return_value = True
+    results.find_elements.return_value = [first, second]
+    swipes = []
+    monkeypatch.setattr(automation, "scroll_up", lambda current: swipes.append(current))
+    monkeypatch.setattr(automation, "_dwell", lambda *_: None)
+
+    result = automation.search_open_first_post_and_scroll(
+        driver, settings.platforms["instagram"],
+        SearchJob(job_id="content-flow", keyword="private-keyword", scroll_count=119),
+        lambda: None,
+    )
+
+    first.click.assert_called_once()
+    second.click.assert_not_called()
+    assert len(swipes) == 119
+    assert result == {
+        "action": "search_open_first_post_and_scroll",
+        "first_result_tapped": True,
+        "content_visit_limit": 120,
+        "content_visits_requested": 120,
+        "content_visits_verified": False,
+        "scrolls": 119,
+    }
 
 
 def test_failure_log_identifies_clear_and_does_not_continue(settings, caplog):

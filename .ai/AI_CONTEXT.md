@@ -647,3 +647,16 @@ Tests simulate shell invocation and cleanup, not live Android. Current
 misconfigured server PID remains operator-owned/orphaned; it must be stopped
 manually after confirming PID/cmdline, then deploy corrected code and let worker
 start server. Do not assume script can replace an existing inaccessible server.
+
+User changed keyword-worker UI behavior: after keyword Enter, tap the first
+clickable search result and swipe upward through at most120 requested content
+visits, counting the opened first result as #1 (119 follow-up swipe attempts).
+User approved increasing this worker's per-job targeted trial bound from120s to
+300s to allow the longer run; standalone collect remains120s. Input Beanstalk
+schema remains keyword-only. Implemented worker-only 300s REPL/JS limit and
+`search_open_first_post_and_scroll`; result records requested visits and explicitly
+marks unique-content count unverified because Appium currently has no stable
+post-transition detector. Tests use mocked Appium/Frida; live first-result
+selector/navigation and proxy capture still need operator verification.
+Local validation after content-feed change:336 tests passed, Ruff/diff clean and
+wheel/sdist built; all new UI and extended-duration assertions are mocked/simulated.

@@ -4,6 +4,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from sniffer.settings import NAME_PATTERN
 
+KEYWORD_CONTENT_LIMIT = 120
+KEYWORD_POST_SCROLLS = KEYWORD_CONTENT_LIMIT - 1
+KEYWORD_TRIAL_SECONDS = 300
+
 
 class SearchJob(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -12,7 +16,7 @@ class SearchJob(BaseModel):
     job_id: str = Field(pattern=NAME_PATTERN)
     action: Literal["search"] = "search"
     keyword: str = Field(min_length=1, max_length=200)
-    scroll_count: int = Field(default=5, ge=0, le=100)
+    scroll_count: int = Field(default=5, ge=0, le=KEYWORD_CONTENT_LIMIT)
     scroll_pause_ms: int = Field(default=1500, ge=100, le=30000)
 
 

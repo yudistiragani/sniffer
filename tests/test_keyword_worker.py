@@ -28,7 +28,7 @@ def queue():
 
 def job():
     return SearchJob(job_id=keyword_executor.queue_job_id("server-instance", "jobs", 42),
-                     keyword="prabowo", scroll_count=10)
+                     keyword="prabowo", scroll_count=119)
 
 
 @pytest.mark.parametrize("body", [
@@ -50,7 +50,7 @@ def test_keyword_payload_rejects_invalid_or_extra_fields(settings, body, monkeyp
 def test_minimal_job_exact_ten_scrolls_and_ack_after_cleanup(settings, monkeypatch):
     client = queue()
     def execute(_settings, _device, value, *, lease, checkpoint):
-        assert value.keyword == "prabowo" and value.scroll_count == 10
+        assert value.keyword == "prabowo" and value.scroll_count == 119
         checkpoint()
         client.delete.assert_not_called()
         return {"output": "synthetic"}
@@ -113,7 +113,8 @@ def test_keyword_executor_scopes_trial_to_job_and_no_capture(settings, monkeypat
             raise RuntimeError("foreground timeout")
     monkeypatch.setattr(keyword_executor, "ensure_instagram_ready", ready)
     @contextmanager
-    def trial(*_):
+    def trial(*_, **kwargs):
+        assert kwargs == {"duration_seconds": 300}
         events.append("attach")
         if failure == "trial":
             raise RuntimeError("refused")
@@ -126,12 +127,17 @@ def test_keyword_executor_scopes_trial_to_job_and_no_capture(settings, monkeypat
                 raise RuntimeError("cleanup failed")
     monkeypatch.setattr("sniffer.integrations.trial_repl.TrialREPL", trial)
     def search(_driver, _platform, value, health):
-        assert value.scroll_count == 10
+        assert value.scroll_count == 119
         health()
         if failure == "search":
             raise RuntimeError("search failed")
-        return {"scrolls": 9 if failure == "scrolls" else 10}
-    monkeypatch.setattr("sniffer.platforms.instagram.executor.search", search)
+        return {
+            "scrolls": 118 if failure == "scrolls" else 119,
+            "first_result_tapped": True,
+        }
+    monkeypatch.setattr(
+        "sniffer.platforms.instagram.automation.search_open_first_post_and_scroll", search,
+    )
     class Clock:
         now = 0
         def monotonic(self):
@@ -154,7 +160,7 @@ def test_keyword_executor_scopes_trial_to_job_and_no_capture(settings, monkeypat
             result = keyword_executor.execute_keyword(
                 settings, "android01", job(), lease=lease, checkpoint=checkpoint,
             )
-            assert result["scrolls"] == 10
+            assert result["scrolls"] == 119
             assert not result["proxy_capture_verified"] and not result["proxy_publish_verified"]
             assert events == ["attach", "detach"]
             assert not list(settings.output_dir.glob("*/posts.jsonl"))
@@ -363,7 +369,7 @@ def test_real_queue_protocol_keyword_worker_heartbeat_then_ack(settings, monkeyp
     settings.beanstalk.port = server.server_address[1]
     settings.devices["android01"].frida_endpoint = "127.0.0.1:27052"
     def fake(_settings, _device, item, *, lease, checkpoint, frida_server):
-        assert item.keyword == "prabowo" and item.scroll_count == 10
+        assert item.keyword == "prabowo" and item.scroll_count == 119
         assert frida_server is not None
         assert "delete 42" not in commands
         checkpoint()

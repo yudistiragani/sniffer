@@ -32,9 +32,11 @@ argument to preserve `--listen` on older platform-tools; Frida may expose only
 the executable path in `/proc/PID/cmdline`, which is accepted only for the recorded
 PID and exact configured executable during owned cleanup. Each job opens an Appium session,
 if needed resolves the package launcher and sends ONE explicit am start (no -S),
-then waits up to20s
-for foreground + one main PID, then attaches approved native 120s REPL trial,
-executes10 scrolls and settles3s, unloads
+then waits up to20s for foreground + one main PID, then attaches the approved
+native REPL trial (300s for keyword worker; standalone collect remains120s),
+taps the first clickable search result
+and attempts at most119 follow-up swipes (120 requested content visits counting
+the first result), then settles3s and unloads
 trial/cleans Appium, checkpoints lease, persists completion, then ACKs. While idle
 there is no attached trial. Runtime error releases/buries then stops the worker;
 lease loss never ACKs. No local recorder/mitmweb access/outgoing results. ACK is UI

@@ -43,7 +43,7 @@ def test_duplicate_ports_rejected():
 
 
 @pytest.mark.parametrize("changes", [
-    {"keyword": ""}, {"scroll_count": -1}, {"scroll_count": 101},
+    {"keyword": ""}, {"scroll_count": -1}, {"scroll_count": 121},
     {"job_id": "../x"}, {"action": "shell"}, {"script": "/tmp/x"},
     {"schema_version": 2}, {"keyword": "   "},
 ])

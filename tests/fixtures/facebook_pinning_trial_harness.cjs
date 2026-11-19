@@ -141,6 +141,7 @@ const context = {
 if (scenario.startsWith("duration_")) {
     context.__snifferTrialDurationMs = scenario === "duration_120" ||
         scenario === "duration_120_expired" ? 120000 :
+        scenario === "duration_300" || scenario === "duration_300_expired" ? 300000 :
         scenario === "duration_string" ? "120000" : 120001;
 }
 if (scenario !== "bridge_missing") context.Java = {
@@ -178,9 +179,10 @@ if (["abi", "version", "signature", "existing_hook", "partial_install", "bridge_
         assert(events.some(e => e.event === "fb_trial.ready" && e.durationMs === 120000));
     }
     if (scenario === "duration_120_expired") now += 121000;
+    if (scenario === "duration_300_expired") now += 301000;
     trustFailure = ["trust_reject", "swallowed_trust_reject"].includes(scenario);
     const allowed = ["override", "fallback", "cdn", "peer_exception", "stale", "transport", "limit",
-        "duration_120"]
+        "duration_120", "duration_300"]
         .includes(scenario);
     if (allowed || scenario === "original_success")
         assert.equal(verifyImpl.call(receiver, certs, host, true), undefined);
@@ -204,6 +206,9 @@ if (["abi", "version", "signature", "existing_hook", "partial_install", "bridge_
         assert.equal(fbCalls, 151);
         now += 31000;
         assert.throws(() => verifyImpl.call(receiver, certs, host, true), e => e === originalError);
+    }
+    if (scenario === "duration_300") {
+        assert(events.some(e => e.event === "fb_trial.ready" && e.durationMs === 300000));
     }
     if (scenario !== "transport" && scenario !== "limit")
         assert.equal(events.filter(e => e.event === "fb_trial.override").length, allowed ? 1 : 0);

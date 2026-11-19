@@ -11,7 +11,13 @@ from contextlib import ExitStack
 
 from sniffer.device import ADB, resolve
 from sniffer.executor import new_session
-from sniffer.jobs import JobConflict, SearchJob
+from sniffer.jobs import (
+    KEYWORD_CONTENT_LIMIT,
+    KEYWORD_POST_SCROLLS,
+    KEYWORD_TRIAL_SECONDS,
+    JobConflict,
+    SearchJob,
+)
 from sniffer.runtime import atomic_json, lock
 
 logger = logging.getLogger(__name__)
@@ -91,10 +97,13 @@ def execute_keyword(
         raise RuntimeError("Configure the existing Frida endpoint; no server will be started.")
     if settings.platforms["instagram"].frida_scripts:
         raise RuntimeError("Remove configured Frida scripts; targeted job trial cannot share hooks.")
-    if job.scroll_count != 10:
-        raise ValueError("Keyword worker requires exactly10 scroll gestures.")
+    if job.scroll_count != KEYWORD_POST_SCROLLS:
+        raise ValueError(f"Keyword worker requires {KEYWORD_POST_SCROLLS} post-feed swipes.")
     fingerprint = hashlib.sha256(
-        json.dumps({"job": job.model_dump(), "mode": "external-proxy-targeted-v1"}, sort_keys=True).encode()
+        json.dumps(
+            {"job": job.model_dump(), "mode": "external-proxy-content-feed-v2"},
+            sort_keys=True,
+        ).encode()
     ).hexdigest()
     completion = settings.state_dir / "completed" / "instagram-keyword" / f"{job.job_id}.json"
     with lock(settings, f"job-{job.job_id}"):
@@ -113,15 +122,16 @@ def execute_keyword(
             frida_server.ensure_ready(checkpoint)
         output = new_session(
             settings, "instagram", device_name, job_id=job.job_id, keyword=job.keyword,
-            capture="external_proxy_unverified", targeted_trial_seconds=120,
-            requested_scrolls=10,
+            capture="external_proxy_unverified",
+            targeted_trial_seconds=KEYWORD_TRIAL_SECONDS,
+            requested_contents=KEYWORD_CONTENT_LIMIT,
+            requested_scrolls=KEYWORD_POST_SCROLLS,
         )
         logger.info("Keyword job session output=%s", output.resolve())
         phase = "appium_setup"
         try:
             from sniffer.integrations.appium import session
             from sniffer.integrations.trial_repl import TrialREPL
-            from sniffer.platforms.instagram.executor import search
 
             with ExitStack() as stack:
                 driver = stack.enter_context(session(device, settings.platforms["instagram"]))
@@ -129,8 +139,13 @@ def execute_keyword(
                 phase = "foreground_and_pid"
                 ensure_instagram_ready(driver, adb, settings.platforms["instagram"].package, checkpoint)
                 phase = "frida_attach"
-                trial = stack.enter_context(TrialREPL(device, output))
-                logger.info("IG targeted_trial status=READY duration_ms=120000")
+                trial = stack.enter_context(
+                    TrialREPL(device, output, duration_seconds=KEYWORD_TRIAL_SECONDS)
+                )
+                logger.info(
+                    "IG targeted_trial status=READY duration_ms=%s",
+                    KEYWORD_TRIAL_SECONDS * 1000,
+                )
 
                 def health():
                     checkpoint()
@@ -142,9 +157,17 @@ def execute_keyword(
 
                 health()
                 phase = "search_and_scroll"
-                result = search(driver, settings.platforms["instagram"], job, health)
-                if result.get("scrolls") != 10:
-                    raise RuntimeError("The ten requested scroll gestures were not completed.")
+                from sniffer.platforms.instagram.automation import (
+                    search_open_first_post_and_scroll,
+                )
+                result = search_open_first_post_and_scroll(
+                    driver, settings.platforms["instagram"], job, health,
+                )
+                if (
+                    result.get("scrolls") != KEYWORD_POST_SCROLLS
+                    or not result.get("first_result_tapped")
+                ):
+                    raise RuntimeError("The requested first-post content feed was not completed.")
                 # Give final proxied requests a bounded window before detaching the hook.
                 until = time.monotonic() + 3
                 while time.monotonic() < until:
